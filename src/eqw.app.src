@@ -1,0 +1,10 @@
+{application, eqw,
+ [{description, "Erlang Queue Worker"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [kernel,
+                  stdlib,
+                  erlcloud
+                 ]},
+  {env, []}
+ ]}.
