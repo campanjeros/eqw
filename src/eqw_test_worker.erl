@@ -5,9 +5,10 @@
 -export([init/1, handle_msg/2]).
 
 
-init(_) ->
-    {ok, 0, 5}.
+init(Pid) ->
+    {ok, Pid, 50}.
 
-handle_msg(Msg, Cnt) ->
-    io:format("~p: ~p~n", [Cnt, proplists:get_value(body, Msg)]),
-    {ok, Cnt + 1}.
+handle_msg(_Msg, Receiver) ->
+    %% io:format("msg: ~p~n", [proplists:get_value(body, Msg)]),
+    Receiver ! {num, 1},
+    ok.

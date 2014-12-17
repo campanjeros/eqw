@@ -2,15 +2,14 @@
 
 -behaviour(eqw_bridge).
 
--export([setup/0, recv/2, ack/2, timeout/2]).
+-export([setup/1, recv/2, ack/2, timeout/2]).
 
-setup() ->
-    QueueName = "gaw_stats-worker-queue",
+setup(QueueName) ->
     [{queue_url, _}] = erlcloud_sqs:create_queue(QueueName),
     {ok, QueueName, timer:seconds(15)}.
 
-recv(_Num, QueueName) ->
-    [{messages, Msgs}] = erlcloud_sqs:receive_message(QueueName),
+recv(Num, QueueName) ->
+    [{messages, Msgs}] = erlcloud_sqs:receive_message(QueueName, [], Num),
     {ok, Msgs}.
 
 ack(Msg, QueueName) ->

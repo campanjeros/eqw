@@ -7,17 +7,17 @@
 -behaviour(gen_fsm).
 
 %% Management API
--export([start_link/3]).
+-export([start_link/4]).
 
 %% APO
--export([get_pool_info/1]).
+-export([get_pool_info/1, set_pool_size/2]).
 
 %% gen_fsm default callbacks
 -export([init/1, handle_sync_event/4, handle_event/3,
          handle_info/3, code_change/4, terminate/3]).
 
 %% gen_fsm state callbacks
--export([polling/2]).
+-export([polling/2, pool_full/2]).
 
 %%-record(config, {timer, timeout, pool_size}).
 %%-type opt() :: timeout | pool_size.
@@ -37,19 +37,23 @@
 -callback handle_msg(Msg::any(), State::any()) -> ok.
 
 %% Management API -------------------------------------------------------------
-start_link(Bridge, Module, Args) ->
-    gen_fsm:start_link(?MODULE, {Bridge, Module, Args}, []).
+%% TODO: Take options, like pool_size, poll_interval, etc
+start_link(Bridge, BridgeArgs, Module, Args) ->
+    gen_fsm:start_link(?MODULE, {Bridge, BridgeArgs, Module, Args}, []).
 
 %% Api ------------------------------------------------------------------------
 
 get_pool_info(Pid) ->
-    gen_fsm:sync_send_event(Pid, get_pool_info).
+    gen_fsm:sync_send_all_state_event(Pid, get_pool_info).
+
+set_pool_size(Pid, Size) ->
+    gen_fsm:send_all_state_event(Pid, {set_pool_info, Size}).
 
 %% gen_fsm standard callbacks -------------------------------------------------
 
-init({Bridge, Module, Args}) ->
+init({Bridge, BridgeArgs, Module, Args}) ->
     process_flag(trap_exit, true),
-    case catch Bridge:setup() of
+    case catch Bridge:setup(BridgeArgs) of
         {ok, BridgeState, TimerInterval} ->
             case catch Module:init(Args) of
                 {ok, ModState, PoolSize} ->
@@ -76,11 +80,16 @@ handle_sync_event(get_pool_info, _, StateName, State) ->
 handle_sync_event(_, _, StateName, State) ->
     {next_state, StateName, State}.
 
-handle_event(_, StateName, State) -> {next_state, StateName, State}.
+handle_event({set_pool_info, Size}, StateName, State) ->
+    {next_state, StateName, State#state{pool_size=Size}};
+handle_event(_, StateName, State) ->
+    {next_state, StateName, State}.
 
-handle_info({'EXIT', Pid, normal}, StateName, #state{pool=Pool} = State) ->
-    {next_state, StateName, State#state{pool=lists:keydelete(Pid, 1, Pool)}};
-handle_info(_, StateName, State) ->
+handle_info({'EXIT', Pid, normal}, _, #state{pool=Pool} = State) ->
+    gen_fsm:send_event(self(), poll),
+    {next_state, polling, State#state{pool=Pool -- [Pid]}};
+handle_info(Info, StateName, State) ->
+    io:format("unexpected info: ~p~n", [Info]),
     {next_state, StateName, State}.
 
 code_change(_, StateName, State, _) -> {ok, StateName, State}.
@@ -99,9 +108,13 @@ polling(poll, #state{pool_size=PoolSize, pool=Pool} = State) ->
             {next_state, pool_full, State};
         true ->
             %% TODO: Ensure this logic handles batches of msgs
-            case catch Bridge:recv(1, BridgeState) of
-                {ok, [Msg]} ->
-                    Fun = fun() ->
+            case catch Bridge:recv(10, BridgeState) of
+                {ok, []} ->
+                    timer:sleep(100),
+                    gen_fsm:send_event(self(), poll),
+                    {next_state, polling, State};
+                {ok, Msgs} ->
+                    Fun = fun(Msg) ->
                               TimerPid = spawn_timer(self(), Bridge,
                                                      BridgeState,
                                                      Msg, TimerInterval),
@@ -109,21 +122,20 @@ polling(poll, #state{pool_size=PoolSize, pool=Pool} = State) ->
                               Bridge:ack(Msg, BridgeState),
                               TimerPid ! {self(), stop}
                           end,
-                    Pid = spawn_link(Fun),
-                    NewPool = [Pid|Pool],
+                    Pids = [ spawn_link(fun() -> Fun(M) end) || M <- Msgs ],
+                    NewPool = Pids ++ Pool,
                     %% TODO: verify if we should keep polling or wait
                     gen_fsm:send_event(self(), poll),
                     {next_state, polling, State#state{pool=NewPool}};
-                {ok, []} ->
-                    timer:sleep(1000),
-                    gen_fsm:send_event(self(), poll),
-                    {next_state, polling, State};
                 {'EXIT', _Reason} ->
-                    timer:sleep(1000),
+                    timer:sleep(100),
                     gen_fsm:send_event(self(), poll),
                     {next_state, polling, State}
             end
     end.
+
+pool_full(_, State) ->
+    {next_state, pool_full, State}.
 
 %% Internal -------------------------------------------------------------------
 

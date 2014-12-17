@@ -7,9 +7,9 @@
 %% Callbacks ------------------------------------------------------------------
 
 %% Sets up or connects to the queue, preferable synchronous receive
--callback setup() -> {ok, State::any()} |
-                     {ok, State::any(), [opt()]} |
-                     {error, Reason::any()}.
+-callback setup(Args::any()) -> {ok, State::any()} |
+                                {ok, State::any(), [opt()]} |
+                                {error, Reason::any()}.
 
 %% Called to fetch/pop messages from the queue
 -callback recv(Number::integer(), State::any()) -> {ok, [Msg::any()]}.
