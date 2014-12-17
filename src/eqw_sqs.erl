@@ -7,10 +7,10 @@
 setup() ->
     QueueName = "gaw_stats-worker-queue",
     [{queue_url, _}] = erlcloud_sqs:create_queue(QueueName),
-    {ok, QueueName, [{timer_interval, timer:seconds(15)}]}.
+    {ok, QueueName, timer:seconds(15)}.
 
 recv(_Num, QueueName) ->
-    [{messages, Msgs}] = erlcloud_sqs:receive_messages(QueueName),
+    [{messages, Msgs}] = erlcloud_sqs:receive_message(QueueName),
     {ok, Msgs}.
 
 ack(Msg, QueueName) ->
