@@ -1,4 +1,4 @@
-%%  Description: eqw_worker_sup_sup
+%%  Description: eqw_worker_sup
 %%
 
 -module(eqw_worker_sup).
