@@ -5,7 +5,7 @@
 
 -behaviour(supervisor).
 
--export([start_link/0, add_child/1, del_child/1]).
+-export([start_link/0, add_child/2, del_child/2]).
 
 %% supervisor callbacks
 -export([init/1]).
@@ -13,13 +13,13 @@
 %% Management Api -------------------------------------------------------------
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, no_arg).
+    supervisor:start_link(?MODULE, no_arg).
 
-add_child(Args) ->
-    supervisor:start_child(?MODULE, Args).
+add_child(Pid, Args) ->
+    supervisor:start_child(Pid, Args).
 
-del_child(Pid) ->
-    supervisor:terminate_child(?MODULE, Pid).
+del_child(ParentPid, ChildPid) ->
+    supervisor:terminate_child(ParentPid, ChildPid).
 
 %% supervisor callbacks -------------------------------------------------------
 

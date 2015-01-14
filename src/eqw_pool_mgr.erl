@@ -11,7 +11,7 @@
 -export([start_link/0]).
 
 %% API
--export([add_pool/4, del_pool/1,
+-export([add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1]).
 
@@ -28,8 +28,8 @@ start_link() ->
 
 %% Api ------------------------------------------------------------------------
 
-add_pool(Bridge, BridgeArgs, Worker, WorkerArgs) ->
-    Args = {Bridge, BridgeArgs, Worker, WorkerArgs},
+add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
+    Args = {{Bridge, BridgeArgs}, {Worker, WorkerArgs}, Opts},
     gen_server:call(?MODULE, {add_pool, Args}).
 
 del_pool(PoolRef) ->
@@ -54,25 +54,20 @@ send(_PoolRef, _Msgs) ->
 
 init(_) ->
     {ok, #{pools => #{},
-           default_options => #{num_pollers => 10,
-                                num_worker => 10}}}.
+           default_options => #{num_pollers => 20,
+                                num_worker => 20}}}.
 
-handle_call({add_pool, Args}, _, #{pools := Pools} = State) ->
-    {Bridge, BridgeArgs, Worker, WorkerArgs, Opts} = Args,
-    {ok, PoolPid} = eqw_pool:new(Bridge, BridgeArgs, Worker, WorkerArgs, Opts),
-    erlang:monitor(process, PoolPid),
+handle_call({add_pool, Args}, _, State) ->
+    #{pools := Pools, default_options := DefaultOpts} = State,
     Ref = make_ref(),
-    Pool = #{pid => PoolPid,
-             %% TODO: Expand args to separate keys?
-             args => Args,
-             state => polling},
+    Pool = add_pool(Args, DefaultOpts),
     {reply, Ref, State#{pools :=  maps:put(Ref, Pool, Pools)}};
 handle_call({del_pool, Ref}, _, #{pools := Pools} = State) ->
     case maps:find(Ref, Pools) of
         error ->
             {reply, {error, not_found}, State};
         {ok, #{pid := Pid}} ->
-            ok = eqw_pool:stop(Pid),
+            ok = eqw_pool_sup:del_child(Pid),
             {reply, ok, State#{pools := maps:remove(Ref, Pools)}}
     end;
 handle_call({pause_pool, Ref}, _, #{pools := Pools} = State) ->
@@ -80,7 +75,7 @@ handle_call({pause_pool, Ref}, _, #{pools := Pools} = State) ->
         error ->
             {reply, {error, not_found}, State};
         {ok, #{pid := Pid} = Pool} ->
-            ok = eqw_pool:pause(Pid),
+            ok = pause_pool_pollers(Pid),
             NewPools = maps:update(Ref, Pool#{state := paused}, Pools),
             {reply, ok, State#{pools := NewPools}}
     end;
@@ -89,7 +84,7 @@ handle_call({resume_pool, Ref}, _, #{pools := Pools} = State) ->
         error ->
             {reply, {error, not_found}, State};
         {ok, #{pid := Pid} = Pool} ->
-            ok = eqw_pool:resume(Pid),
+            ok = resume_pool_pollers(Pid),
             NewPools = maps:update(Ref, Pool#{state := polling}, Pools),
             {reply, ok, State#{pools := NewPools}}
     end;
@@ -119,3 +114,32 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %% Internal -------------------------------------------------------------------
+
+add_pool({Bridge, Worker, Opts}, DefaultOpts) ->
+    #{num_pollers := NumPollers} = NewOpts = maps:merge(DefaultOpts, Opts),
+    {ok, Pool} = new_pool(),
+    [ new_poller(Pool, Bridge, Worker, Opts) || _ <- lists:seq(1, NumPollers) ],
+    #{pid => Pool,
+      bridge => Bridge,
+      worker => Worker,
+      opts => NewOpts,
+      state => polling}.
+
+new_pool() ->
+    eqw_pool_sup:add_child([]).
+
+new_poller(Pool, Bridge, Worker, Opts) ->
+    eqw_poller:new(Pool, Bridge, Worker, Opts).
+
+pause_pool_pollers(Pool) ->
+    PollerPids = get_pool_pollers(Pool),
+    [ eqw_poller:pause(P) || P <- PollerPids ],
+    ok.
+
+resume_pool_pollers(Pool) ->
+    PollerPids = get_pool_pollers(Pool),
+    [ eqw_poller:resume(P) || P <- PollerPids ],
+    ok.
+
+get_pool_pollers(Pool) ->
+    [ P || {_, P, _, _} <- supervisor:which_children(Pool) ].

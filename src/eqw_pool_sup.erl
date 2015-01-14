@@ -1,4 +1,4 @@
-%%  Description: eqw_pool_sup
+%%  Description: eqw_worker_sup_sup
 %%
 
 -module(eqw_pool_sup).
@@ -25,11 +25,11 @@ del_child(Pid) ->
 %% supervisor callbacks -------------------------------------------------------
 
 init(no_arg) ->
-    Pool = child(eqw_pool, eqw_pool, worker, []),
+    Worker = child(eqw_poller_sup, eqw_poller_sup, supervisor, []),
     Strategy = {simple_one_for_one, 1, 5},
-    {ok, {Strategy, [Pool]}}.
+    {ok, {Strategy, [Worker]}}.
 
 %% Internal -------------------------------------------------------------------
 
 child(Name, Mod, Type, Args) ->
-    {Name, {Mod, start_link, Args}, transient, 3000, Type, [Mod]}.
+    {Name, {Mod, start_link, Args}, transient, 2000, Type, [Mod]}.
