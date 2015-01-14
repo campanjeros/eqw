@@ -21,11 +21,10 @@ start_link() ->
 init(no_arg) ->
     InfoSrv = child(eqw_info, eqw_info, worker, []),
     WorkerSup = child(eqw_worker_sup, eqw_worker_sup, supervisor, []),
-    PollerSup = child(eqw_poller_sup, eqw_poller_sup, supervisor, []),
     PoolSup = child(eqw_pool_sup, eqw_pool_sup, supervisor, []),
     PoolMgr = child(eqw_pool_mgr, eqw_pool_mgr, worker, []),
     Strategy = {one_for_one, 1, 5},
-    {ok, {Strategy, [InfoSrv, WorkerSup, PollerSup, PoolSup, PoolMgr]}}.
+    {ok, {Strategy, [InfoSrv, WorkerSup, PoolSup, PoolMgr]}}.
 
 %% Internal -------------------------------------------------------------------
 

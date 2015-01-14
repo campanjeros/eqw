@@ -33,12 +33,23 @@ resume(Pid) ->
 
 %% gen_server callbacks -------------------------------------------------------
 
-init([{Bridge, BridgeArgs}, {Worker, WorkerArgs}, Opts]) ->
-    {ok, #{bridge => Bridge,
-           bridge_args => BridgeArgs,
-           worker => Worker,
-           worker_args => WorkerArgs,
-           opts => Opts}}.
+init([{Bridge, BridgeArgs}, Worker, Opts]) ->
+    case catch Bridge:setup(BridgeArgs) of
+        {error, Reason} ->
+            % Send info to eqw:info
+            {stop, {Bridge, setup, Reason}};
+        {'EXIT', Reason} ->
+            % Send info to eqw:info
+            exit({Bridge, setup, Reason});
+        {ok, BridgeState} ->
+            #{poll_interval := PollInterval} = Opts,
+            Timer = timer:send_after(PollInterval, poll),
+            {ok, #{bridge => Bridge,
+                   bridge_state => BridgeState,
+                   worker => Worker,
+                   timer => Timer,
+                   opts => Opts}}
+    end.
 
 handle_call(_, _, State) ->
     {noreply, State}.
@@ -46,6 +57,37 @@ handle_call(_, _, State) ->
 handle_cast(_, State) ->
     {noreply, State}.
 
+handle_info(poll, State) ->
+    #{bridge := Bridge,
+      bridge_state := BridgeState,
+      worker := Worker,
+      pool := Pool,
+      opts := #{max_workers := MaxWorkers,
+                poll_interval := PollInterval} = Opts} = State,
+    case length(Pool) < MaxWorkers of
+        false ->
+            Timer = timer:send_after(PollInterval, poll),
+            {noreply, State#{timer => Timer}};
+        true ->
+            NumMessages = max(MaxWorkers - length(Pool), 10),
+            case catch Bridge:recv(NumMessages, BridgeState) of
+                {error, _Reason} ->
+                    % Send info to eqw:info
+                    Timer = timer:send_after(PollInterval, poll),
+                    {noreply, State#{timer => Timer}};
+                {'EXIT', _Reason} ->
+                    % Send info to eqw:info
+                    Timer = timer:send_after(PollInterval, poll),
+                    {noreply, State#{timer => Timer}};
+                {ok, Msgs} ->
+                    Pids = setup_workers({Bridge, BridgeState},
+                                         Worker, Opts, length(Msgs)),
+                    PidMsgs = lists:zip(Pids, Msgs),
+                    [ eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs ],
+                    Timer = timer:send_after(PollInterval, poll),
+                    {noreply, State#{timer => Timer}}
+            end
+    end;
 handle_info(_, State) ->
     {noreply, State}.
 
@@ -56,3 +98,10 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %% Internal -------------------------------------------------------------------
+
+setup_workers(Bridge, Worker, Opts, Num) ->
+    [ setup_worker(Bridge, Worker, Opts) || _ <- lists:seq(1, Num) ].
+
+setup_worker(Bridge, Worker, Opts) ->
+    {ok, Pid} = eqw_worker:new(Bridge, Worker, Opts),
+    Pid.

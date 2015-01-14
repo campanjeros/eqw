@@ -1,14 +1,13 @@
 -module(eqw_test_worker).
 
--behaviour(eqw_queue_handler).
+-behaviour(gen_eqw).
 
 -export([init/1, handle_msg/2]).
 
 
-init(Pid) ->
-    {ok, Pid, 50}.
+init(_) ->
+    {ok, no_state}.
 
-handle_msg(_Msg, Receiver) ->
-    %% io:format("msg: ~p~n", [proplists:get_value(body, Msg)]),
-    Receiver ! {num, 1},
+handle_msg(Msg, _) ->
+    io:format("msg: ~p~n", [proplists:get_value(body, Msg)]),
     ok.

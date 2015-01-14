@@ -55,7 +55,9 @@ send(_PoolRef, _Msgs) ->
 init(_) ->
     {ok, #{pools => #{},
            default_options => #{num_pollers => 20,
-                                num_worker => 20}}}.
+                                max_worker => 20,
+                                timer_interval => timer:seconds(15),
+                                poll_interval => 50}}}.
 
 handle_call({add_pool, Args}, _, State) ->
     #{pools := Pools, default_options := DefaultOpts} = State,

@@ -6,7 +6,7 @@
 -behaviour(gen_server).
 
 %% Management API
--export([start_link/0]).
+-export([start_link/3]).
 
 %% API
 -export([]).
@@ -17,15 +17,19 @@
 
 %% Management Api -------------------------------------------------------------
 
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(Interval, Bridge, Msg) ->
+    gen_server:start_link(?MODULE, [Interval, Bridge, Msg], []).
 
 %% Api ------------------------------------------------------------------------
 
 %% gen_server callbacks -------------------------------------------------------
 
-init(_) ->
-    {ok, #{}}.
+init([Interval, {Bridge, BridgeState}, Msg]) ->
+    timer:send_after(Interval, tick),
+    {ok, #{interval => Interval,
+           bridge => Bridge,
+           bridge_state => BridgeState,
+           msg => Msg}}.
 
 handle_call(_, _, State) ->
     {noreply, State}.
@@ -33,6 +37,17 @@ handle_call(_, _, State) ->
 handle_cast(_, State) ->
     {noreply, State}.
 
+handle_info(tick, State) ->
+    #{interval := Interval,
+      bridge := Bridge,
+      bridge_state := BridgeState,
+      msg := Msg} = State,
+    case catch Bridge:timeout(Msg, BridgeState) of
+        {'EXIT', Reason} ->
+            exit({gen_eqw_bridge, timeout, Reason});
+        _ ->
+            timer:send_after(Interval, tick)
+    end;
 handle_info(_, State) ->
     {noreply, State}.
 
