@@ -42,11 +42,13 @@ handle_info(tick, State) ->
       bridge := Bridge,
       bridge_state := BridgeState,
       msg := Msg} = State,
+    eqw_info:inc(timer_tick),
     case catch Bridge:timeout(Msg, BridgeState) of
-        {'EXIT', Reason} ->
-            exit({gen_eqw_bridge, timeout, Reason});
+        {'EXIT', _} ->
+            {stop, normal, State};
         _ ->
-            timer:send_after(Interval, tick)
+            timer:send_after(Interval, tick),
+            {noreply, State}
     end;
 handle_info(_, State) ->
     {noreply, State}.

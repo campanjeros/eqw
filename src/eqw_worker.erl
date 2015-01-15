@@ -54,12 +54,15 @@ handle_cast({handle_message, Msg}, State) ->
       worker_state := WorkerState,
       opts := #{timer_interval := Interval}} = State,
     eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
-    case Worker:handle_message(Msg, WorkerState) of
+    case Worker:handle_msg(Msg, WorkerState) of
         ok ->
+            inc(message_handled, 1),
             case catch Bridge:ack(Msg, BridgeState) of
                 {'EXIT', Reason} ->
+                    inc(bridge_ack_crash, 1),
                     exit({gen_eqw_bridge, Bridge, Reason});
                 _ ->
+                    inc(bridge_ack, 1),
                     {stop, normal, State}
             end;
         _ ->
@@ -78,3 +81,6 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %% Internal -------------------------------------------------------------------
+
+inc(Counter, Steps) ->
+    eqw_info:inc(Counter, Steps).

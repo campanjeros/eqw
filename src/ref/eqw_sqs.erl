@@ -6,10 +6,11 @@
 
 setup(QueueName) ->
     [{queue_url, _}] = erlcloud_sqs:create_queue(QueueName),
-    {ok, QueueName, timer:seconds(15)}.
+    {ok, QueueName}.
 
 recv(Num, QueueName) ->
-    [{messages, Msgs}] = erlcloud_sqs:receive_message(QueueName, [], Num),
+    [{messages, Msgs}] = erlcloud_sqs:receive_message(QueueName, all,
+                                                      Num, 30, 20),
     {ok, Msgs}.
 
 ack(Msg, QueueName) ->

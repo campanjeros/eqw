@@ -8,7 +8,7 @@
          add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1,
-         status/0]).
+         stats/0]).
 
 %% Utility
 -export([send/2]).
@@ -39,7 +39,7 @@ list_pools() ->
 pool_info(PoolRef) ->
     eqw_pool_mgr:pool_info(PoolRef).
 
-status() ->
+stats() ->
     eqw_info:status().
 
 %% Utility --------------------------------------------------------------------

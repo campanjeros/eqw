@@ -26,10 +26,10 @@ new(ParentSup, Bridge, Worker, Opts) ->
 %% Api ------------------------------------------------------------------------
 
 pause(Pid) ->
-    gen_server:call(Pid, pause).
+    gen_server:cast(Pid, pause).
 
 resume(Pid) ->
-    gen_server:call(Pid, resume).
+    gen_server:cast(Pid, resume).
 
 %% gen_server callbacks -------------------------------------------------------
 
@@ -43,11 +43,11 @@ init([{Bridge, BridgeArgs}, Worker, Opts]) ->
             exit({Bridge, setup, Reason});
         {ok, BridgeState} ->
             #{poll_interval := PollInterval} = Opts,
-            Timer = timer:send_after(PollInterval, poll),
+            timer:send_after(PollInterval, poll),
             {ok, #{bridge => Bridge,
                    bridge_state => BridgeState,
                    worker => Worker,
-                   timer => Timer,
+                   pool => [],
                    opts => Opts}}
     end.
 
@@ -66,28 +66,38 @@ handle_info(poll, State) ->
                 poll_interval := PollInterval} = Opts} = State,
     case length(Pool) < MaxWorkers of
         false ->
-            Timer = timer:send_after(PollInterval, poll),
-            {noreply, State#{timer => Timer}};
+            timer:send_after(PollInterval, poll),
+            {noreply, State};
         true ->
-            NumMessages = max(MaxWorkers - length(Pool), 10),
+            NumMessages = min(MaxWorkers - length(Pool), 10),
+            inc(bridge_receive),
             case catch Bridge:recv(NumMessages, BridgeState) of
                 {error, _Reason} ->
                     % Send info to eqw:info
-                    Timer = timer:send_after(PollInterval, poll),
-                    {noreply, State#{timer => Timer}};
+                    inc(bridge_receive_error),
+                    timer:send_after(PollInterval, poll),
+                    {noreply, State};
                 {'EXIT', _Reason} ->
+                    inc(bridge_receive_crash),
                     % Send info to eqw:info
-                    Timer = timer:send_after(PollInterval, poll),
-                    {noreply, State#{timer => Timer}};
+                    timer:send_after(PollInterval, poll),
+                    {noreply, State};
                 {ok, Msgs} ->
+                    inc(bridge_receive_msgs, length(Msgs)),
                     Pids = setup_workers({Bridge, BridgeState},
                                          Worker, Opts, length(Msgs)),
                     PidMsgs = lists:zip(Pids, Msgs),
                     [ eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs ],
-                    Timer = timer:send_after(PollInterval, poll),
-                    {noreply, State#{timer => Timer}}
+                    timer:send_after(PollInterval, poll),
+                    {noreply, State#{pool := Pids ++ Pool}}
             end
     end;
+handle_info({'DOWN', _, _, Pid, normal}, #{pool := Pool} = State) ->
+    inc(worker_handled_message),
+    {noreply, State#{pool := Pool -- [Pid]}};
+handle_info({'DOWN', _, _, Pid, _}, #{pool := Pool} = State) ->
+    inc(worker_crashed),
+    {noreply, State#{pool := Pool -- [Pid]}};
 handle_info(_, State) ->
     {noreply, State}.
 
@@ -100,8 +110,17 @@ code_change(_, State, _) ->
 %% Internal -------------------------------------------------------------------
 
 setup_workers(Bridge, Worker, Opts, Num) ->
-    [ setup_worker(Bridge, Worker, Opts) || _ <- lists:seq(1, Num) ].
+    setup_workers(Bridge, Worker, Opts, Num, 0, []).
 
-setup_worker(Bridge, Worker, Opts) ->
+setup_workers(_, _, _, Num, Num, Res) ->
+    Res;
+setup_workers(Bridge, Worker, Opts, Num, SoFar, Res) ->
     {ok, Pid} = eqw_worker:new(Bridge, Worker, Opts),
-    Pid.
+    monitor(process, Pid),
+    setup_workers(Bridge, Worker, Opts, Num, SoFar + 1, [Pid|Res]).
+
+inc(Counter) ->
+    eqw_info:inc(Counter).
+
+inc(Counter, Steps) ->
+    eqw_info:inc(Counter, Steps).

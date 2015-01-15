@@ -30,7 +30,7 @@ start_link() ->
 
 add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
     Args = {{Bridge, BridgeArgs}, {Worker, WorkerArgs}, Opts},
-    gen_server:call(?MODULE, {add_pool, Args}).
+    gen_server:call(?MODULE, {add_pool, Args}, timer:seconds(60)).
 
 del_pool(PoolRef) ->
     gen_server:call(?MODULE, {del_pool, PoolRef}).
@@ -55,7 +55,7 @@ send(_PoolRef, _Msgs) ->
 init(_) ->
     {ok, #{pools => #{},
            default_options => #{num_pollers => 20,
-                                max_worker => 20,
+                                max_workers => 20,
                                 timer_interval => timer:seconds(15),
                                 poll_interval => 50}}}.
 
@@ -120,7 +120,8 @@ code_change(_, State, _) ->
 add_pool({Bridge, Worker, Opts}, DefaultOpts) ->
     #{num_pollers := NumPollers} = NewOpts = maps:merge(DefaultOpts, Opts),
     {ok, Pool} = new_pool(),
-    [ new_poller(Pool, Bridge, Worker, Opts) || _ <- lists:seq(1, NumPollers) ],
+    [ new_poller(Pool, Bridge, Worker, NewOpts) ||
+      _ <- lists:seq(1, NumPollers) ],
     #{pid => Pool,
       bridge => Bridge,
       worker => Worker,
