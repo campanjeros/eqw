@@ -1,4 +1,4 @@
--module(eqw_bridge).
+-module(gen_eqw_bridge).
 
 -export([]).
 
@@ -7,12 +7,12 @@
 %% Callbacks ------------------------------------------------------------------
 
 %% Sets up or connects to the queue, preferable synchronous receive
--callback setup(Args::any()) -> {ok, State::any()} |
-                                {ok, State::any(), [opt()]} |
-                                {error, Reason::any()}.
+-callback setup(Args::any()) -> {ok, State::any()}
+                              | {error, Reason::any()}.
 
 %% Called to fetch/pop messages from the queue
--callback recv(Number::integer(), State::any()) -> {ok, [Msg::any()]}.
+-callback recv(Number::integer(), State::any()) -> {ok, [Msg::any()]}
+                                                 | {error, Reason::any()}.
 
 %% Called to acknowledge/delete a message that has been received
 -callback ack(Msg::any(), State::any()) -> ok | {error, Reason::any()}.
