@@ -4,7 +4,7 @@
 
 -export([setup/1, recv/2, ack/2, timeout/2]).
 
-setup(#{queue_name := QueueName}) ->
+setup(QueueName) ->
     [{queue_url, _}] = erlcloud_sqs:create_queue(QueueName),
     {ok, QueueName}.
 

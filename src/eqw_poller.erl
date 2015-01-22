@@ -15,6 +15,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-record(state, {bridge, bridge_state, worker, pool, opts, state}).
+
 %% Management Api -------------------------------------------------------------
 
 start_link(Bridge, Worker, Opts) ->
@@ -22,9 +24,6 @@ start_link(Bridge, Worker, Opts) ->
 
 new(ParentSup, Bridge, Worker, Opts) ->
     eqw_poller_sup:add_child(ParentSup, [Bridge, Worker, Opts]).
-
-stop(Pid) ->
-    gem_server:cast(Pid, stop).
 
 %% Api ------------------------------------------------------------------------
 
@@ -39,20 +38,18 @@ resume(Pid) ->
 init([{Bridge, BridgeArgs}, Worker, Opts]) ->
     case catch Bridge:setup(BridgeArgs) of
         {error, Reason} ->
-            % Send info to eqw:info
             {stop, {Bridge, setup, Reason}};
         {'EXIT', Reason} ->
-            % Send info to eqw:info
             exit({Bridge, setup, Reason});
         {ok, BridgeState} ->
-            #{poll_interval := PollInterval} = Opts,
+            PollInterval = proplists:get_value(poll_interval, Opts),
             timer:send_after(PollInterval, poll),
-            {ok, #{bridge => Bridge,
-                   bridge_state => BridgeState,
-                   worker => Worker,
-                   pool => [],
-                   opts => Opts,
-                   state => running}}
+            {ok, #state{bridge=Bridge,
+                        bridge_state=BridgeState,
+                        worker=Worker,
+                        pool=[],
+                        opts=Opts,
+                        state=running}}
     end.
 
 handle_call(_, _, State) ->
@@ -61,23 +58,24 @@ handle_call(_, _, State) ->
 handle_cast(stop, State) ->
     {stop, normal, State};
 handle_cast(pause, State) ->
-    {noreply, State#{state := paused}};
+    {noreply, State#state{state=paused}};
 handle_cast(resume, State) ->
-    {noreply, State#{state := running}};
+    {noreply, State#state{state=running}};
 handle_cast(_, State) ->
     {noreply, State}.
 
-handle_info(poll, #{state := paused} = State) ->
-    #{opts := #{poll_interval := PollInterval}} = State,
+handle_info(poll, #state{state=paused, opts=Opts} = State) ->
+    PollInterval = proplists:get_value(poll_interval, Opts),
     timer:send_after(PollInterval, poll),
     {noreply, State};
-handle_info(poll, #{state := running} = State) ->
-    #{bridge := Bridge,
-      bridge_state := BridgeState,
-      worker := Worker,
-      pool := Pool,
-      opts := #{max_workers := MaxWorkers,
-                poll_interval := PollInterval} = Opts} = State,
+handle_info(poll, #state{state=running} = State) ->
+    #state{bridge=Bridge,
+           bridge_state=BridgeState,
+           worker=Worker,
+           pool=Pool,
+           opts=Opts} = State,
+   MaxWorkers = proplists:get_value(max_workers, Opts),
+   PollInterval = proplists:get_value(poll_interval, Opts),
     case length(Pool) < MaxWorkers of
         false ->
             timer:send_after(PollInterval, poll),
@@ -101,15 +99,15 @@ handle_info(poll, #{state := running} = State) ->
                     PidMsgs = lists:zip(Pids, Msgs),
                     [ eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs ],
                     erlang:send(self(), poll),
-                    {noreply, State#{pool := Pids ++ Pool}}
+                    {noreply, State#state{pool=Pids ++ Pool}}
             end
     end;
-handle_info({'DOWN', _, _, Pid, normal}, #{pool := Pool} = State) ->
+handle_info({'DOWN', _, _, Pid, normal}, #state{pool=Pool} = State) ->
     inc(worker_handled_message),
-    {noreply, State#{pool := Pool -- [Pid]}};
-handle_info({'DOWN', _, _, Pid, _}, #{pool := Pool} = State) ->
+    {noreply, State#state{pool=Pool -- [Pid]}};
+handle_info({'DOWN', _, _, Pid, _}, #state{pool=Pool} = State) ->
     inc(worker_crashed),
-    {noreply, State#{pool := Pool -- [Pid]}};
+    {noreply, State#state{pool=Pool -- [Pid]}};
 handle_info(_, State) ->
     {noreply, State}.
 

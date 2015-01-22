@@ -16,7 +16,8 @@
 %% Api ------------------------------------------------------------------------
 
 start() ->
-    application:ensure_all_started(eqw).
+    erlcloud:start(),
+    application:start(?MODULE).
 
 stop() ->
     application:stop(eqw).

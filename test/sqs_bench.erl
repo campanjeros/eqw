@@ -9,8 +9,8 @@
 start(Queue, Pollers, MaxWorkers, NumMessages, MsgSize) ->
     eqw:start(),
     Pid = start_counter(NumMessages),
-    Opts = #{num_pollers => Pollers, max_workers => MaxWorkers},
-    Pool = eqw:add_pool(eqw_sqs, Queue, ?MODULE, [Pid], Opts),
+    Opts = [{num_pollers, Pollers}, {max_workers, MaxWorkers}],
+    Pool = eqw:add_pool(sqs, Queue, ?MODULE, [Pid], Opts),
     T0 = os:timestamp(),
     send_bulk(Queue,NumMessages, MsgSize),
     SendTs = timer:now_diff(os:timestamp(), T0)/1000000,
@@ -62,12 +62,3 @@ counter(Parent, CountToReach, Count) ->
         {inc, Step} ->
             counter(Parent, CountToReach, Count+Step)
     end.
-
-split_list(List, Size) ->
-    split_list(List, Size, []).
-
-split_list(List, Size, Parts) when length(List) > Size ->
-    {Part, Rest} = lists:split(Size, List),
-    split_list(Rest, Size, [Part|Parts]);
-split_list(List, _, Parts) ->
-    lists:reverse([List|Parts]).

@@ -15,6 +15,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-record(state, {bridge, bridge_state, worker, worker_state, opts}).
 %% Management Api -------------------------------------------------------------
 
 start_link(Bridge, Worker, Opts) ->
@@ -33,11 +34,11 @@ handle_message(Pid, Msg) ->
 init([{Bridge, BridgeState}, {Worker, WorkerArgs}, Opts]) ->
     case catch Worker:init(WorkerArgs) of
         {ok, WorkerState} ->
-            {ok, #{bridge => Bridge,
-                   bridge_state => BridgeState,
-                   worker => Worker,
-                   worker_state => WorkerState,
-                   opts => Opts}};
+            {ok, #state{bridge=Bridge,
+                        bridge_state=BridgeState,
+                        worker=Worker,
+                        worker_state=WorkerState,
+                        opts=Opts}};
         {error, Reason} ->
             {stop, {gen_eqw, Worker, Reason}};
         {'EXIT', Reason} ->
@@ -48,11 +49,12 @@ handle_call(_, _, State) ->
     {noreply, State}.
 
 handle_cast({handle_message, Msg}, State) ->
-    #{bridge := Bridge,
-      bridge_state := BridgeState,
-      worker := Worker,
-      worker_state := WorkerState,
-      opts := #{timer_interval := Interval}} = State,
+    #state{bridge=Bridge,
+           bridge_state=BridgeState,
+           worker=Worker,
+           worker_state= WorkerState,
+           opts=Opts} = State,
+    Interval = proplists:get_value(timer_interval, Opts),
     eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
     case Worker:handle_msg(Msg, WorkerState) of
         ok ->

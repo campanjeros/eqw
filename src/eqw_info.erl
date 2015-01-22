@@ -34,17 +34,17 @@ inc(Counter, Steps) ->
 %% gen_server callbacks -------------------------------------------------------
 
 init(_) ->
-    {ok, #{tbl => ets:new(eqw_info, [])}}.
+    {ok, ets:new(eqw_info, [])}.
 
-handle_call(status, _, #{tbl := Tbl} = State) ->
+handle_call(status, _, Tbl) ->
     Stats = ets:match(Tbl, '$0'),
-    {reply, Stats, State};
+    {reply, Stats, Tbl};
 handle_call(_, _, State) ->
     {noreply, State}.
 
-handle_cast({inc, Counter, Steps}, #{tbl := Tbl} = State) ->
+handle_cast({inc, Counter, Steps}, Tbl) ->
     update_counter(Tbl, Counter, Steps),
-    {noreply, State};
+    {noreply, Tbl};
 handle_cast(_, State) ->
     {noreply, State}.
 
