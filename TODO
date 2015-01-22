@@ -2,7 +2,7 @@ TODO
 ====
 
 * Tweak all supervisor maximum restart frequency
-* Handle pause/resume
+* Handle pause/resume [X]
 * Check error handling in callback behaviours
 * Dynamic configuration of pools via facade
     - Num pollers (means being able to shut them down gracefully)
@@ -13,10 +13,10 @@ TODO
     - Implement simple disk MQ through bridge interface
 * Figure out how and where to add/put standard bridges
     - Assert the input (map/proplist)
-    - Bridge folder under src
+    - Bridge folder under src/priv
     - All bridges must be highly configurable to be standard
     - Bridge behaviour should reflect this, always take a map in setup/1
-    - Make bridge timeout callback be optional
+    - Make bridge timeout callback optional
 * facade: get total num of pollers
 * facade: get total num of workers and timers
 * Special branch for R15B03 (without maps)
@@ -28,3 +28,6 @@ TODO
       messages. This is because weather the recv is bulk or not is up to the
       bridge to decide and should be set in the bridge state.
 * LATER: Maybe implement waiter/responder pattern (push, not pull)
+* LATER: Bridge support for queue metadata
+    - queue length
+    - queue dispatch (but not acked)
