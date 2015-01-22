@@ -1,10 +1,10 @@
--module(eqw_sqs).
+-module(sqs).
 
 -behaviour(gen_eqw_bridge).
 
 -export([setup/1, recv/2, ack/2, timeout/2]).
 
-setup(QueueName) ->
+setup(#{queue_name := QueueName}) ->
     [{queue_url, _}] = erlcloud_sqs:create_queue(QueueName),
     {ok, QueueName}.
 
