@@ -23,6 +23,9 @@ start_link(Bridge, Worker, Opts) ->
 new(ParentSup, Bridge, Worker, Opts) ->
     eqw_poller_sup:add_child(ParentSup, [Bridge, Worker, Opts]).
 
+stop(Pid) ->
+    gem_server:cast(Pid, stop).
+
 %% Api ------------------------------------------------------------------------
 
 pause(Pid) ->
@@ -48,16 +51,27 @@ init([{Bridge, BridgeArgs}, Worker, Opts]) ->
                    bridge_state => BridgeState,
                    worker => Worker,
                    pool => [],
-                   opts => Opts}}
+                   opts => Opts,
+                   state => running}}
     end.
 
 handle_call(_, _, State) ->
     {noreply, State}.
 
+handle_cast(stop, State) ->
+    {stop, normal, State};
+handle_cast(pause, State) ->
+    {noreply, State#{state := paused}};
+handle_cast(resume, State) ->
+    {noreply, State#{state := running}};
 handle_cast(_, State) ->
     {noreply, State}.
 
-handle_info(poll, State) ->
+handle_info(poll, #{state := paused} = State) ->
+    #{opts := #{poll_interval := PollInterval}} = State,
+    timer:send_after(PollInterval, poll),
+    {noreply, State};
+handle_info(poll, #{state := running} = State) ->
     #{bridge := Bridge,
       bridge_state := BridgeState,
       worker := Worker,
@@ -73,13 +87,11 @@ handle_info(poll, State) ->
             inc(bridge_receive),
             case catch Bridge:recv(NumMessages, BridgeState) of
                 {error, _Reason} ->
-                    % Send info to eqw:info
                     inc(bridge_receive_error),
                     timer:send_after(PollInterval, poll),
                     {noreply, State};
                 {'EXIT', _Reason} ->
                     inc(bridge_receive_crash),
-                    % Send info to eqw:info
                     timer:send_after(PollInterval, poll),
                     {noreply, State};
                 {ok, Msgs} ->
@@ -88,7 +100,7 @@ handle_info(poll, State) ->
                                          Worker, Opts, length(Msgs)),
                     PidMsgs = lists:zip(Pids, Msgs),
                     [ eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs ],
-                    timer:send_after(PollInterval, poll),
+                    erlang:send(self(), poll),
                     {noreply, State#{pool := Pids ++ Pool}}
             end
     end;
