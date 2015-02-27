@@ -56,8 +56,8 @@ send(_PoolRef, _Msgs) ->
 %% gen_server callbacks -------------------------------------------------------
 
 init(_) ->
-    {ok, #state{default_options=[{num_pollers, 20},
-                                 {max_workers, 20},
+    {ok, #state{default_options=[{num_pollers, 2},
+                                 {max_workers, 5},
                                  {timer_interval, timer:seconds(15)},
                                  {poll_interval, 50}]}}.
 

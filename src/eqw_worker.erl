@@ -55,7 +55,7 @@ handle_cast({handle_message, Msg}, State) ->
            worker_state= WorkerState,
            opts=Opts} = State,
     Interval = proplists:get_value(timer_interval, Opts),
-    eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
+    {ok, TPid} = eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
     case Worker:handle_msg(Msg, WorkerState) of
         ok ->
             inc(message_handled, 1),
@@ -65,6 +65,7 @@ handle_cast({handle_message, Msg}, State) ->
                     exit({gen_eqw_bridge, Bridge, Reason});
                 _ ->
                     inc(bridge_ack, 1),
+                    eqw_timer:stop(TPid),
                     {stop, normal, State}
             end;
         _ ->

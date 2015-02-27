@@ -6,7 +6,7 @@
 -behaviour(gen_server).
 
 %% Management API
--export([start_link/3]).
+-export([start_link/3, stop/1]).
 
 %% API
 -export([]).
@@ -20,6 +20,9 @@
 
 start_link(Interval, Bridge, Msg) ->
     gen_server:start_link(?MODULE, [Interval, Bridge, Msg], []).
+
+stop(Pid) ->
+    gen_server:cast(Pid, stop).
 
 %% Api ------------------------------------------------------------------------
 
@@ -35,6 +38,8 @@ init([Interval, {Bridge, BridgeState}, Msg]) ->
 handle_call(_, _, State) ->
     {noreply, State}.
 
+handle_cast(stop, State) ->
+    {stop, normal, State};
 handle_cast(_, State) ->
     {noreply, State}.
 
