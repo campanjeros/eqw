@@ -54,8 +54,8 @@ send(_PoolRef, _Msgs) ->
 
 init(_) ->
     {ok, #{pools => #{},
-           default_options => #{num_pollers => 20,
-                                max_workers => 20,
+           default_options => #{num_pollers => 2,
+                                max_workers => 5,
                                 timer_interval => timer:seconds(15),
                                 poll_interval => 50}}}.
 

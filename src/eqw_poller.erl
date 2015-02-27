@@ -6,7 +6,7 @@
 -behaviour(gen_server).
 
 %% Management API
--export([start_link/3, new/4]).
+-export([start_link/3, new/4, stop/1]).
 
 %% API
 -export([pause/1, resume/1]).
@@ -24,7 +24,7 @@ new(ParentSup, Bridge, Worker, Opts) ->
     eqw_poller_sup:add_child(ParentSup, [Bridge, Worker, Opts]).
 
 stop(Pid) ->
-    gem_server:cast(Pid, stop).
+    gen_server:cast(Pid, stop).
 
 %% Api ------------------------------------------------------------------------
 

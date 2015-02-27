@@ -1,6 +1,7 @@
 TODO
 ====
 
+* Make sure the pool crashes on bridge or behaviour errors
 * Tweak all supervisor maximum restart frequency
 * Handle pause/resume [X]
 * Check error handling in callback behaviours

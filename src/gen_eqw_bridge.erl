@@ -2,8 +2,6 @@
 
 -export([]).
 
--type opt() :: [{timer, timeout()}].
-
 %% Callbacks ------------------------------------------------------------------
 
 %% Sets up or connects to the queue, preferable synchronous receive
