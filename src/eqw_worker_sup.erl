@@ -26,10 +26,10 @@ del_child(Pid) ->
 
 init(no_arg) ->
     Worker = child(eqw_worker, eqw_worker, worker, []),
-    Strategy = {simple_one_for_one, 1, 5},
+    Strategy = {simple_one_for_one, 10000, 1},
     {ok, {Strategy, [Worker]}}.
 
 %% Internal -------------------------------------------------------------------
 
 child(Name, Mod, Type, Args) ->
-    {Name, {Mod, start_link, Args}, transient, 2000, Type, [Mod]}.
+    {Name, {Mod, start_link, Args}, temporary, 2000, Type, [Mod]}.
