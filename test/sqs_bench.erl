@@ -62,12 +62,3 @@ counter(Parent, CountToReach, Count) ->
         {inc, Step} ->
             counter(Parent, CountToReach, Count+Step)
     end.
-
-split_list(List, Size) ->
-    split_list(List, Size, []).
-
-split_list(List, Size, Parts) when length(List) > Size ->
-    {Part, Rest} = lists:split(Size, List),
-    split_list(Rest, Size, [Part|Parts]);
-split_list(List, _, Parts) ->
-    lists:reverse([List|Parts]).
