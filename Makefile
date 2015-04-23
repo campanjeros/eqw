@@ -2,7 +2,7 @@ REBAR="rebar"
 
 .PHONY: all compile check test doc clean get-deps update-deps
 
-all: get-deps compile xref
+all: get-deps compile build-test-dir xref
 
 compile:
 	@$(REBAR) -j compile
@@ -40,3 +40,6 @@ get-deps:
 update-deps:
 	@$(REBAR) -j update-deps
 	@$(REBAR) -j get-deps
+
+build-test-dir: compile
+	@erlc -o ebin -pa ebin test/*.erl
