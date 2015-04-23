@@ -4,7 +4,7 @@
 
 -export([init/1, handle_msg/2]).
 
--export([start/2, stop/1]).
+-export([start/0, start/2, stop/1]).
 
 start() ->
     start(10, 10).
