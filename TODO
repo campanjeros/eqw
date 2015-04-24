@@ -20,7 +20,6 @@ TODO
     - Make bridge timeout callback optional
 * facade: get total num of pollers
 * facade: get total num of workers and timers
-* Special branch for R15B03 (without maps)
 * eqw_timer might be better suited as an actual, timer (timer:apply_interval)
     - Started by worker
     - Ensure automatic cleaning if worker dies
@@ -32,3 +31,7 @@ TODO
 * LATER: Bridge support for queue metadata
     - queue length
     - queue dispatch (but not acked)
+
+To Test
+=======
+* How to use topics
