@@ -1,45 +1,15 @@
-REBAR="rebar"
+PROJECT = eqw
 
-.PHONY: all compile check test doc clean get-deps update-deps
+DEPS = erlcloud
 
-all: get-deps compile build-test-dir xref
+dep_erlcloud = git git://github.com/campanja-forks/erlcloud.git \
+	campanja-20150212
 
-compile:
-	@$(REBAR) -j 20 compile
+AUTOPATCH += meck
 
-xref:
-	@$(REBAR) -j 20 skip_deps=true xref
+include erlang.mk
 
-clientd.plt:
-	dialyzer --output_plt clientd.plt --build_plt \
-		--apps stdlib kernel inets log4erl lhttpc
+all:: deps app build-test-dir rel
 
-dialyzer: get-deps compile
-	dialyzer --plt clientd.plt --src src
-
-test: all
-	@$(REBAR) -j 20 ct skip_deps=true
-
-external-test: all
-	@rm -rf .eunit apps/*/.eunit
-	@$(REBAR) -j 20 eunit skip_deps=true -DEUNIT_EXTERNAL
-
-doc:
-	@$(REBAR) -j 20 doc skip_deps=true
-
-clean:
-	@rm -rf test/*.beam
-	@$(REBAR) -j 20 clean
-
-dist-clean: clean
-	@$(REBAR) -j 20 delete-deps
-
-get-deps:
-	@$(REBAR) -j 20 get-deps
-
-update-deps:
-	@$(REBAR) -j 20 update-deps
-	@$(REBAR) -j 20 get-deps
-
-build-test-dir: compile
+build-test-dir:
 	@erlc -o ebin -pa ebin test/*.erl

@@ -6,6 +6,7 @@
                      stdlib,
                      erlcloud
                     ]},
+     {modules, []},
      {mod, {eqw_app, no_arg}},
      {env, []}
     ]

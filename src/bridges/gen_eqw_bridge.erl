@@ -1,7 +1,5 @@
 -module(gen_eqw_bridge).
 
--export([]).
-
 %% Callbacks ------------------------------------------------------------------
 
 %% Sets up or connects to the queue, preferable synchronous receive
