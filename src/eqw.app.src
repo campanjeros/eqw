@@ -2,10 +2,7 @@
     [{description, "Erlang Queue Worker"},
      {vsn, "0.4.2"},
      {registered, []},
-     {applications, [kernel,
-                     stdlib,
-                     erlcloud
-                    ]},
+     {applications, [kernel,stdlib]},
      {modules, []},
      {mod, {eqw_app, no_arg}},
      {env, []}
