@@ -1,6 +1,6 @@
 {application, eqw,
     [{description, "Erlang Queue Worker"},
-     {vsn, "0.4.1"},
+     {vsn, "0.4.2"},
      {registered, []},
      {applications, [kernel,
                      stdlib,
