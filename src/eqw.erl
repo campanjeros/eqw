@@ -45,4 +45,4 @@ stats() ->
 %% Utility --------------------------------------------------------------------
 
 send(PoolRef, Msgs) ->
-    eqw_pool_mgr:send(PoolRef, Msgs).
+    eqw_pool_mgr:send_to_pool(PoolRef, Msgs).

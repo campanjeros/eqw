@@ -16,3 +16,6 @@
 %% Called on a regular interval, specified by init_queue/1
 %% Could be used to reset timeout on received items
 -callback timeout(Msg::any(), State::any()) -> ok.
+
+%% Should wrap a send-batch call for the specific queue-system
+-callback send([Msg::any()], State::any()) -> ok | {error, Reason::any()}.

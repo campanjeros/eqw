@@ -9,5 +9,5 @@
 -callback init(Args::any()) -> {ok, State::any()} |
                                {stop, Reason::any()}.
 
--callback handle_msg(Msg::any(), State::any()) -> ok.
+-callback handle_msg(Msg::any(), PoolRef::reference(), State::any()) -> ok.
 

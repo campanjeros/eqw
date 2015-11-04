@@ -6,7 +6,7 @@
 -behaviour(gen_server).
 
 %% Management API
--export([start_link/3, new/4, stop/1]).
+-export([start_link/4, new/5, stop/1]).
 
 %% API
 -export([pause/1, resume/1]).
@@ -17,11 +17,11 @@
 
 %% Management Api -------------------------------------------------------------
 
-start_link(Bridge, Worker, Opts) ->
-    gen_server:start_link(?MODULE, [Bridge, Worker, Opts], []).
+start_link(PoolRef, Bridge, Worker, Opts) ->
+    gen_server:start_link(?MODULE, [PoolRef, Bridge, Worker, Opts], []).
 
-new(ParentSup, Bridge, Worker, Opts) ->
-    eqw_poller_sup:add_child(ParentSup, [Bridge, Worker, Opts]).
+new(ParentSup, PoolRef, Bridge, Worker, Opts) ->
+    eqw_poller_sup:add_child(ParentSup, [PoolRef, Bridge, Worker, Opts]).
 
 stop(Pid) ->
     gen_server:cast(Pid, stop).
@@ -36,24 +36,16 @@ resume(Pid) ->
 
 %% gen_server callbacks -------------------------------------------------------
 
-init([{Bridge, BridgeArgs}, Worker, Opts]) ->
-    case catch Bridge:setup(BridgeArgs) of
-        {error, Reason} ->
-            % Send info to eqw:info
-            {stop, {Bridge, setup, Reason}};
-        {'EXIT', Reason} ->
-            % Send info to eqw:info
-            exit({Bridge, setup, Reason});
-        {ok, BridgeState} ->
-            #{poll_interval := PollInterval} = Opts,
-            timer:send_after(PollInterval, poll),
-            {ok, #{bridge => Bridge,
-                   bridge_state => BridgeState,
-                   worker => Worker,
-                   pool => [],
-                   opts => Opts,
-                   state => running}}
-    end.
+init([PoolRef, {Bridge, BridgeState}, Worker, Opts]) ->
+    #{poll_interval := PollInterval} = Opts,
+    timer:send_after(PollInterval, poll),
+    {ok, #{pool_ref => PoolRef,
+           bridge => Bridge,
+           bridge_state => BridgeState,
+           worker => Worker,
+           pool => [],
+           opts => Opts,
+           state => running}}.
 
 handle_call(_, _, State) ->
     {noreply, State}.
@@ -72,7 +64,8 @@ handle_info(poll, #{state := paused} = State) ->
     timer:send_after(PollInterval, poll),
     {noreply, State};
 handle_info(poll, #{state := running} = State) ->
-    #{bridge := Bridge,
+    #{pool_ref := PoolRef,
+      bridge := Bridge,
       bridge_state := BridgeState,
       worker := Worker,
       pool := Pool,
@@ -96,7 +89,7 @@ handle_info(poll, #{state := running} = State) ->
                     {noreply, State};
                 {ok, Msgs} ->
                     inc(bridge_receive_msgs, length(Msgs)),
-                    Pids = setup_workers({Bridge, BridgeState},
+                    Pids = setup_workers(PoolRef, {Bridge, BridgeState},
                                          Worker, Opts, length(Msgs)),
                     PidMsgs = lists:zip(Pids, Msgs),
                     [ eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs ],
@@ -121,15 +114,15 @@ code_change(_, State, _) ->
 
 %% Internal -------------------------------------------------------------------
 
-setup_workers(Bridge, Worker, Opts, Num) ->
-    setup_workers(Bridge, Worker, Opts, Num, 0, []).
+setup_workers(PoolRef, Bridge, Worker, Opts, Num) ->
+    setup_workers(PoolRef, Bridge, Worker, Opts, Num, 0, []).
 
-setup_workers(_, _, _, Num, Num, Res) ->
+setup_workers(_, _, _, _, Num, Num, Res) ->
     Res;
-setup_workers(Bridge, Worker, Opts, Num, SoFar, Res) ->
-    {ok, Pid} = eqw_worker:new(Bridge, Worker, Opts),
+setup_workers(PoolRef, Bridge, Worker, Opts, Num, SoFar, Res) ->
+    {ok, Pid} = eqw_worker:new(PoolRef, Bridge, Worker, Opts),
     monitor(process, Pid),
-    setup_workers(Bridge, Worker, Opts, Num, SoFar + 1, [Pid|Res]).
+    setup_workers(PoolRef, Bridge, Worker, Opts, Num, SoFar + 1, [Pid|Res]).
 
 inc(Counter) ->
     eqw_info:inc(Counter).

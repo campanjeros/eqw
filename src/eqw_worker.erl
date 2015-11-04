@@ -6,7 +6,7 @@
 -behaviour(gen_server).
 
 %% Management API
--export([start_link/3, new/3]).
+-export([start_link/4, new/4]).
 
 %% API
 -export([handle_message/2]).
@@ -17,11 +17,11 @@
 
 %% Management Api -------------------------------------------------------------
 
-start_link(Bridge, Worker, Opts) ->
-    gen_server:start_link(?MODULE, [Bridge, Worker, Opts], []).
+start_link(PoolRef, Bridge, Worker, Opts) ->
+    gen_server:start_link(?MODULE, [PoolRef, Bridge, Worker, Opts], []).
 
-new(Bridge, Worker, Opts) ->
-    eqw_worker_sup:add_child([Bridge, Worker, Opts]).
+new(PoolRef, Bridge, Worker, Opts) ->
+    eqw_worker_sup:add_child([PoolRef, Bridge, Worker, Opts]).
 
 %% Api ------------------------------------------------------------------------
 
@@ -30,10 +30,11 @@ handle_message(Pid, Msg) ->
 
 %% gen_server callbacks -------------------------------------------------------
 
-init([{Bridge, BridgeState}, {Worker, WorkerArgs}, Opts]) ->
+init([PoolRef, {Bridge, BridgeState}, {Worker, WorkerArgs}, Opts]) ->
     case catch Worker:init(WorkerArgs) of
         {ok, WorkerState} ->
-            {ok, #{bridge => Bridge,
+            {ok, #{pool_ref => PoolRef,
+                   bridge => Bridge,
                    bridge_state => BridgeState,
                    worker => Worker,
                    worker_state => WorkerState,
@@ -52,9 +53,10 @@ handle_cast({handle_message, Msg}, State) ->
       bridge_state := BridgeState,
       worker := Worker,
       worker_state := WorkerState,
+      pool_ref:=PoolRef,
       opts := #{timer_interval := Interval}} = State,
     {ok, TPid} = eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
-    case Worker:handle_msg(Msg, WorkerState) of
+    case Worker:handle_msg(Msg, PoolRef, WorkerState) of
         ok ->
             inc(message_handled, 1),
             case catch Bridge:ack(Msg, BridgeState) of

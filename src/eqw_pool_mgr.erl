@@ -13,9 +13,8 @@
 %% API
 -export([add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
-         list_pools/0, pool_info/1]).
-
--export([send/2]).
+         list_pools/0, pool_info/1,
+         send_to_pool/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -47,8 +46,20 @@ list_pools() ->
 pool_info(PoolRef) ->
     gen_server:call(?MODULE, {pool_info, PoolRef}).
 
-send(_PoolRef, _Msgs) ->
-    ok.
+send_to_pool(PoolRef, Msgs) ->
+    case pool_info(PoolRef) of
+        {error, not_found} ->
+            {error, pool_not_found};
+        #{bridge:={BridgeMod, BridgeState}} ->
+            case catch BridgeMod:send(Msgs, BridgeState) of
+                ok ->
+                    {ok, length(Msgs)};
+                {error, Error} ->
+                    {error, Error};
+                {'EXIT', {Reason,_}} ->
+                    exit(Reason)
+            end
+    end.
 
 %% gen_server callbacks -------------------------------------------------------
 
@@ -62,8 +73,12 @@ init(_) ->
 handle_call({add_pool, Args}, _, State) ->
     #{pools := Pools, default_options := DefaultOpts} = State,
     Ref = make_ref(),
-    Pool = add_pool(Args, DefaultOpts),
-    {reply, Ref, State#{pools :=  maps:put(Ref, Pool, Pools)}};
+    case add_pool(Ref, Args, DefaultOpts) of
+        {ok, Pool} ->
+            {reply, Ref, State#{pools := Pools#{Ref=>Pool}}};
+        {error, Error} ->
+            {reply, {error, Error}, State}
+    end;
 handle_call({del_pool, Ref}, _, #{pools := Pools} = State) ->
     case maps:find(Ref, Pools) of
         error ->
@@ -117,32 +132,49 @@ code_change(_, State, _) ->
 
 %% Internal -------------------------------------------------------------------
 
-add_pool({Bridge, Worker, Opts}, DefaultOpts) ->
-    #{num_pollers := NumPollers} = NewOpts = maps:merge(DefaultOpts, Opts),
-    {ok, Pool} = new_pool(),
-    [ new_poller(Pool, Bridge, Worker, NewOpts) ||
-      _ <- lists:seq(1, NumPollers) ],
-    #{pid => Pool,
-      bridge => Bridge,
-      worker => Worker,
-      opts => NewOpts,
-      state => polling}.
+add_pool(PoolRef, {{Bridge, BridgeArgs}, Worker, Opts}, DefaultOpts) ->
+    case init_pool(Bridge, BridgeArgs) of
+        {ok, BridgeState} ->
+            NewOpts = maps:merge(DefaultOpts, Opts),
+            #{num_pollers := NumPollers} = NewOpts,
+            {ok, Pool} = new_pool(),
+            NewBridge = {Bridge, BridgeState},
+            [new_poller(Pool, PoolRef, NewBridge, Worker, NewOpts) ||
+             _ <- lists:seq(1, NumPollers)],
+         {ok, #{pid => Pool,
+                bridge => NewBridge,
+                worker => Worker,
+                opts => NewOpts,
+                state => polling}};
+      {error, Error} ->
+          {error, Error}
+    end.
+
+init_pool(Bridge, BridgeArgs) ->
+    case catch Bridge:setup(BridgeArgs) of
+        {error, Reason} ->
+            {error, {bridge_setup_error, Reason}};
+        {'EXIT', {Error, _}} ->
+            {error, {bridge_setup_crash, Error}};
+        {ok, BridgeState} ->
+            {ok, BridgeState}
+    end.
 
 new_pool() ->
     eqw_pool_sup:add_child([]).
 
-new_poller(Pool, Bridge, Worker, Opts) ->
-    eqw_poller:new(Pool, Bridge, Worker, Opts).
+new_poller(Pool, PoolRef, Bridge, Worker, Opts) ->
+    eqw_poller:new(Pool, PoolRef, Bridge, Worker, Opts).
 
 pause_pool_pollers(Pool) ->
     PollerPids = get_pool_pollers(Pool),
-    [ eqw_poller:pause(P) || P <- PollerPids ],
+    [eqw_poller:pause(P) || P <- PollerPids],
     ok.
 
 resume_pool_pollers(Pool) ->
     PollerPids = get_pool_pollers(Pool),
-    [ eqw_poller:resume(P) || P <- PollerPids ],
+    [eqw_poller:resume(P) || P <- PollerPids],
     ok.
 
 get_pool_pollers(Pool) ->
-    [ P || {_, P, _, _} <- supervisor:which_children(Pool) ].
+    [P || {_, P, _, _} <- supervisor:which_children(Pool)].
