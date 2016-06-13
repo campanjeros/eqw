@@ -13,7 +13,7 @@
 %% API
 -export([add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
-         list_pools/0, pool_info/1,
+         list_pools/0, pool_info/1, metadata/1,
          send_to_pool/2]).
 
 %% gen_server callbacks
@@ -45,6 +45,21 @@ list_pools() ->
 
 pool_info(PoolRef) ->
     gen_server:call(?MODULE, {pool_info, PoolRef}).
+
+metadata(PoolRef) ->
+    case pool_info(PoolRef) of
+        {error, not_found} ->
+            {error, pool_not_found};
+        #{bridge:={BridgeMod, BridgeState}} ->
+            case catch BridgeMod:metadata(BridgeState) of
+                {ok, Metadata} ->
+                    {ok, Metadata};
+                {error, Error} ->
+                    {error, Error};
+                {'EXIT', {Reason,_}} ->
+                    exit(Reason)
+            end
+    end.
 
 send_to_pool(PoolRef, Msgs) ->
     case pool_info(PoolRef) of
