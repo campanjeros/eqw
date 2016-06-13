@@ -52,12 +52,10 @@ metadata(PoolRef) ->
             {error, pool_not_found};
         #{bridge:={BridgeMod, BridgeState}} ->
             case catch BridgeMod:metadata(BridgeState) of
-                {ok, Metadata} ->
-                    {ok, Metadata};
-                {error, Error} ->
-                    {error, Error};
                 {'EXIT', {Reason,_}} ->
-                    exit(Reason)
+                    exit(Reason);
+                Metadata ->
+                    Metadata
             end
     end.
 
