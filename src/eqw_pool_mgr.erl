@@ -11,7 +11,7 @@
 -export([start_link/0]).
 
 %% API
--export([add_pool/5, del_pool/1,
+-export([add_pool/3, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1, metadata/1,
          send_to_pool/2]).
@@ -27,8 +27,8 @@ start_link() ->
 
 %% Api ------------------------------------------------------------------------
 
-add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
-    Args = {{Bridge, BridgeArgs}, {Worker, WorkerArgs}, Opts},
+add_pool(Worker, WorkerArgs, Opts) ->
+    Args = {{Worker, WorkerArgs}, Opts},
     gen_server:call(?MODULE, {add_pool, Args}, timer:seconds(60)).
 
 del_pool(PoolRef) ->
@@ -83,10 +83,10 @@ init(_) ->
                                 timer_interval => timer:seconds(15),
                                 poll_interval => 50}}}.
 
-handle_call({add_pool, Args}, _, State) ->
+handle_call({add_pool, {Worker, Opts}}, _, State) ->
     #{pools := Pools, default_options := DefaultOpts} = State,
     Ref = make_ref(),
-    case add_pool(Ref, Args, DefaultOpts) of
+    case add_pool(Ref, Worker, Opts, DefaultOpts) of
         {ok, Pool} ->
             {reply, Ref, State#{pools := Pools#{Ref=>Pool}}};
         {error, Error} ->
@@ -145,7 +145,11 @@ code_change(_, State, _) ->
 
 %% Internal -------------------------------------------------------------------
 
-add_pool(PoolRef, {{Bridge, BridgeArgs}, Worker, Opts}, DefaultOpts) ->
+add_pool(PoolRef, Worker, Opts, DefaultOpts) ->
+    {ok, Bridge} = application:get_env(bridge),
+    {ok, RequestQueue} = application:get_env(request_queue),
+    {ok, ResponseQueue} = application:get_env(response_queue),
+    BridgeArgs = #{recv_queue=>ResponseQueue, send_queue=>RequestQueue},
     case init_pool(Bridge, BridgeArgs) of
         {ok, BridgeState} ->
             NewOpts = maps:merge(DefaultOpts, Opts),
