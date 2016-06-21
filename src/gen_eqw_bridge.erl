@@ -21,10 +21,5 @@
 -callback send([Msg::any()], State::any()) -> ok | {error, Reason::any()}.
 
 %% returns queue system metadata
-%% return value is a map with two keys; 'request_queue' and 'response_queue'.
-%% both map values are maps. The keys 'name', 'length' and 'handling' are
-%% mandatory, but there can be more fields if appropriate for the queue system.
-%% Value of 'name' is a string, length (number of messages in the queue) is an
-%% integer, and 'handling' (the number of messages that has been received but
-%% not yet deleted) is an integer.
--callback metadata(State::any()) -> map().
+%% return value is a flat map with data appropriate for the queue system.
+-callback metadata(State::any()) -> #{atom() => any()}.
