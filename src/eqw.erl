@@ -5,10 +5,10 @@
 
 %% Api
 -export([start/0, stop/0,
-         add_pool/5, del_pool/1,
+         add_pool/3, add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1,
-         stats/0]).
+         stats/0, metadata/1]).
 
 %% Utility
 -export([send/2]).
@@ -20,6 +20,13 @@ start() ->
 
 stop() ->
     application:stop(eqw).
+
+add_pool(Worker, WorkerArgs, Opts) ->
+    {ok, Bridge} = application:get_env(eqw, bridge),
+    {ok, RequestQueue} = application:get_env(eqw, request_queue),
+    {ok, ResponseQueue} = application:get_env(eqw, response_queue),
+    BridgeArgs = #{recv_queue=>ResponseQueue, send_queue=>RequestQueue},
+    add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts).
 
 add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
     eqw_pool_mgr:add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts).
@@ -38,6 +45,9 @@ list_pools() ->
 
 pool_info(PoolRef) ->
     eqw_pool_mgr:pool_info(PoolRef).
+
+metadata(PoolRef) ->
+    eqw_pool_mgr:metadata(PoolRef).
 
 stats() ->
     eqw_info:status().

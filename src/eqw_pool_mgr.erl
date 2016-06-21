@@ -13,7 +13,7 @@
 %% API
 -export([add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
-         list_pools/0, pool_info/1,
+         list_pools/0, pool_info/1, metadata/1,
          send_to_pool/2]).
 
 %% gen_server callbacks
@@ -45,6 +45,19 @@ list_pools() ->
 
 pool_info(PoolRef) ->
     gen_server:call(?MODULE, {pool_info, PoolRef}).
+
+metadata(PoolRef) ->
+    case pool_info(PoolRef) of
+        {error, not_found} ->
+            {error, pool_not_found};
+        #{bridge:={BridgeMod, BridgeState}} ->
+            case catch BridgeMod:metadata(BridgeState) of
+                {'EXIT', {Reason,_}} ->
+                    exit(Reason);
+                Metadata ->
+                    Metadata
+            end
+    end.
 
 send_to_pool(PoolRef, Msgs) ->
     case pool_info(PoolRef) of
@@ -140,14 +153,14 @@ add_pool(PoolRef, {{Bridge, BridgeArgs}, Worker, Opts}, DefaultOpts) ->
             {ok, Pool} = new_pool(),
             NewBridge = {Bridge, BridgeState},
             [new_poller(Pool, PoolRef, NewBridge, Worker, NewOpts) ||
-             _ <- lists:seq(1, NumPollers)],
-         {ok, #{pid => Pool,
-                bridge => NewBridge,
-                worker => Worker,
-                opts => NewOpts,
-                state => polling}};
-      {error, Error} ->
-          {error, Error}
+              _ <- lists:seq(1, NumPollers)],
+            {ok, #{pid => Pool,
+                   bridge => NewBridge,
+                   worker => Worker,
+                   opts => NewOpts,
+                   state => polling}};
+        {error, Error} ->
+            {error, Error}
     end.
 
 init_pool(Bridge, BridgeArgs) ->
