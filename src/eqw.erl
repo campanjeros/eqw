@@ -5,7 +5,7 @@
 
 %% Api
 -export([start/0, stop/0,
-         add_pool/2, add_pool/3, add_pool/5, del_pool/1,
+         add_pool/2, add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1,
          stats/0, metadata/1]).
@@ -22,14 +22,9 @@ stop() ->
     application:stop(eqw).
 
 add_pool(Worker, WorkerArgs) ->
-    Opts = maps:from_list(application:get_all_env(eqw)),
-    add_pool(Worker, WorkerArgs, Opts).
-
-add_pool(Worker, WorkerArgs, Opts) ->
     {ok, Bridge} = application:get_env(eqw, bridge),
-    {ok, RequestQueue} = application:get_env(eqw, request_queue),
-    {ok, ResponseQueue} = application:get_env(eqw, response_queue),
-    BridgeArgs = #{recv_queue=>ResponseQueue, send_queue=>RequestQueue},
+    {ok, BridgeArgs} = application:get_env(eqw, bridge_args),
+    Opts = maps:from_list(application:get_all_env(eqw)),
     add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts).
 
 add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
