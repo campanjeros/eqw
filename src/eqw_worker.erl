@@ -56,7 +56,8 @@ handle_cast({handle_message, Msg}, State) ->
       pool_ref:=PoolRef,
       opts := #{timer_interval := Interval}} = State,
     {ok, TPid} = eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
-    case Worker:handle_msg(Msg, PoolRef, WorkerState) of
+    DecodedMsg = Bridge:decode(Msg),
+    case Worker:handle_msg(DecodedMsg, PoolRef, WorkerState) of
         ok ->
             inc(message_handled, 1),
             case catch Bridge:ack(Msg, BridgeState) of

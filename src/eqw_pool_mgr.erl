@@ -63,8 +63,9 @@ send_to_pool(PoolRef, Msgs) ->
     case pool_info(PoolRef) of
         {error, not_found} ->
             {error, pool_not_found};
-        #{bridge:={BridgeMod, BridgeState}} ->
-            case catch BridgeMod:send(Msgs, BridgeState) of
+        #{bridge:={Bridge, BridgeState}} ->
+            EncodedMsgs = [Bridge:encode(M) || M <- Msgs],
+            case catch Bridge:send(EncodedMsgs, BridgeState) of
                 ok ->
                     {ok, length(Msgs)};
                 {error, Error} ->
