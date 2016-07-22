@@ -20,6 +20,12 @@
 %% Should wrap a send-batch call for the specific queue-system
 -callback send([Msg::any()], State::any()) -> ok | {error, Reason::any()}.
 
+%% Called before send. Used to hide transport-specific encoding from end user.
+-callback encode(Msg::any()) -> EncodedMsg::any().
+
+%% Called after recv. Used to hide transport-specific encoding from end user.
+-callback decode(Msg::any()) -> DecodedMsg::any().
+
 %% returns queue system metadata
 %% return value is a flat map with data appropriate for the queue system.
 -callback metadata(State::any()) -> #{atom() => any()}.
