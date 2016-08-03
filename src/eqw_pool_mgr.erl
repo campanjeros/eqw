@@ -89,7 +89,7 @@ handle_call({add_pool, Args}, _, State) ->
     Ref = make_ref(),
     case add_pool(Ref, Args, DefaultOpts) of
         {ok, Pool} ->
-            {reply, Ref, State#{pools := Pools#{Ref=>Pool}}};
+            {reply, {ok, Ref}, State#{pools := Pools#{Ref=>Pool}}};
         {error, Error} ->
             {reply, {error, Error}, State}
     end;
