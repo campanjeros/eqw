@@ -1,8 +1,30 @@
-PROJECT = eqw
+.PHONY: clean distclean upgrade compile test dialyzer eunit xref
 
-include erlang.mk
+default: compile
 
-all:: deps app build-test-dir
+clean:
+	./rebar3 clean
+	rm -f _build/*/lib/*/ebin/*
+	find . -name "erlcinfo" -exec rm {} \;
 
-build-test-dir:
-	@erlc -o ebin -pa ebin test/*.erl
+distclean: clean
+	rm -rf _build
+	rm -f rebar.lock
+	rm -rf .release
+
+upgrade:
+	./rebar3 upgrade
+
+compile:
+	./rebar3 compile
+
+test: xref eunit dialyzer
+
+dialyzer:
+	./rebar3 dialyzer
+
+eunit:
+	./rebar3 eunit
+
+xref:
+	./rebar3 xref
