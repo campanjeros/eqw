@@ -1,11 +1,6 @@
 *~
-*.beam
-*.app
-deps/*
-.eunit
-doc
 erl_crash.dump
 *.swp
 *.swo
-logs
 .rebar
+/_build/
