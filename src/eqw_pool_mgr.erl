@@ -59,19 +59,15 @@ metadata(PoolRef) ->
             end
     end.
 
+-spec send_to_pool(reference(), list()) -> {ok, any()} | {error, any()}.
 send_to_pool(PoolRef, Msgs) ->
     case pool_info(PoolRef) of
         {error, not_found} ->
             {error, pool_not_found};
         #{bridge:={Bridge, BridgeState}} ->
             EncodedMsgs = [Bridge:encode(M) || M <- Msgs],
-            case catch Bridge:send(EncodedMsgs, BridgeState) of
-                ok ->
-                    {ok, length(Msgs)};
-                {error, Error} ->
-                    {error, Error};
-                {'EXIT', {Reason,_}} ->
-                    exit(Reason)
+            try {ok, _} = Bridge:send(EncodedMsgs, BridgeState)
+            catch C:R -> {error, {C,R}}
             end
     end.
 
