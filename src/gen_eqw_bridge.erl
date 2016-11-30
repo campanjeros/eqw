@@ -17,8 +17,10 @@
 %% Could be used to reset timeout on received items
 -callback timeout(Msg::any(), State::any()) -> ok.
 
-%% Should wrap a send-batch call for the specific queue-system
--callback send([Msg::any()], State::any()) -> ok | {error, Reason::any()}.
+%% Should wrap a send/send-batch call for the specific queue-system
+%% Reports send failures in FailedMsgs list.
+-callback send([Msg::any()], State::any()) -> {ok, [FailedMsg::any()]}
+                                            | {error, Reason::any()}.
 
 %% Called before send. Used to hide transport-specific encoding from end user.
 -callback encode(Msg::any()) -> EncodedMsg::any().
