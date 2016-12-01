@@ -57,19 +57,23 @@ handle_cast({handle_message, Msg}, State) ->
       opts := #{timer_interval := Interval}} = State,
     {ok, TPid} = eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
     DecodedMsg = Bridge:decode(Msg),
-    case Worker:handle_msg(DecodedMsg, PoolRef, WorkerState) of
+    case catch Worker:handle_msg(DecodedMsg, PoolRef, WorkerState) of
         ok ->
-            inc(message_handled, 1),
+            inc(bridge_msg_handled, 1),
             case catch Bridge:ack(Msg, BridgeState) of
                 {'EXIT', Reason} ->
                     inc(bridge_ack_crash, 1),
                     exit({gen_eqw_bridge, Bridge, Reason});
                 _ ->
-                    inc(bridge_ack, 1),
                     eqw_timer:stop(TPid),
                     {stop, normal, State}
             end;
+        {'EXIT', Reason} ->
+            inc(bridge_handle_crash, 1),
+            exit({gen_eqw_bridge, Bridge, Reason});
         _ ->
+            inc(bridge_msg_handled, 1),
+            eqw_timer:stop(TPid),
             {stop, normal, State}
     end;
 handle_cast(_, State) ->
