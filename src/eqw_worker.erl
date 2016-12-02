@@ -62,9 +62,10 @@ handle_cast({handle_message, Msg}, State) ->
             inc(bridge_msg_handled, 1),
             case catch Bridge:ack(Msg, BridgeState) of
                 {'EXIT', Reason} ->
-                    inc(bridge_ack_crash, 1),
+                    inc(bridge_msg_ack_crash, 1),
                     exit({gen_eqw_bridge, Bridge, Reason});
                 _ ->
+                    inc(bridge_msg_ack, 1),
                     eqw_timer:stop(TPid),
                     {stop, normal, State}
             end;

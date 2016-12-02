@@ -164,7 +164,7 @@ init_pool(Bridge, BridgeArgs) ->
     case catch Bridge:setup(BridgeArgs) of
         {error, Reason} ->
             {error, {bridge_setup_error, Reason}};
-        {'EXIT', {Error, _}} ->
+        {'EXIT', Error} ->
             {error, {bridge_setup_crash, Error}};
         {ok, BridgeState} ->
             {ok, BridgeState}
