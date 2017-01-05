@@ -98,7 +98,7 @@ handle_info(poll, #{state := running} = State) ->
             end
     end;
 handle_info({'DOWN', _, _, Pid, normal}, #{pool := Pool} = State) ->
-    inc(worker_handled_message),
+    inc(worker_handled_msg),
     {noreply, State#{pool := Pool -- [Pid]}};
 handle_info({'DOWN', _, _, Pid, _}, #{pool := Pool} = State) ->
     inc(worker_crashed),

@@ -70,7 +70,7 @@ handle_cast({handle_message, Msg}, State) ->
                     {stop, normal, State}
             end;
         {'EXIT', Reason} ->
-            inc(bridge_handle_crash, 1),
+            inc(bridge_msg_handled_crash, 1),
             exit({gen_eqw_bridge, Bridge, Reason});
         _ ->
             inc(bridge_msg_handled, 1),
