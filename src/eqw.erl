@@ -5,7 +5,7 @@
 
 %% Api
 -export([start/0, stop/0,
-         add_pool/2, add_pool/5, del_pool/1,
+         add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1,
          stats/0, metadata/1]).
@@ -20,12 +20,6 @@ start() ->
 
 stop() ->
     application:stop(eqw).
-
-add_pool(Worker, WorkerArgs) ->
-    {ok, Bridge} = application:get_env(eqw, bridge),
-    {ok, BridgeArgs} = application:get_env(eqw, bridge_args),
-    Opts = maps:from_list(application:get_all_env(eqw)),
-    add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts).
 
 add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
     eqw_pool_mgr:add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts).
