@@ -10,4 +10,3 @@
                                {stop, Reason::any()}.
 
 -callback handle_msg(Msg::any(), PoolRef::reference(), State::any()) -> ok.
-

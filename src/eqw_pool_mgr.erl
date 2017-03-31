@@ -59,16 +59,31 @@ metadata(PoolRef) ->
             end
     end.
 
--spec send_to_pool(reference(), list()) -> {ok, any()} | {error, any()}.
+-spec send_to_pool(reference(), list()) -> ok | {error, any()}.
 send_to_pool(PoolRef, Msgs) ->
     case pool_info(PoolRef) of
         {error, not_found} ->
             {error, pool_not_found};
-        #{bridge:={Bridge, BridgeState}} ->
+        #{bridge:={Bridge, BridgeState}, opts:=#{send_retries:=Retries}} ->
             EncodedMsgs = [Bridge:encode(M) || M <- Msgs],
-            try {ok, _} = Bridge:send(EncodedMsgs, BridgeState)
-            catch C:R -> {error, {C,R}}
-            end
+            send_with_retry(EncodedMsgs, Bridge, BridgeState, Retries)
+    end.
+
+send_with_retry(FailedMsgs, _, _, 0) ->
+    {error, {send_failed, FailedMsgs}};
+send_with_retry(Msgs, Bridge, BridgeState, Retries) ->
+    case send(Msgs, Bridge, BridgeState) of
+        {ok, []} ->
+            ok;
+        {ok, FailedMsgs} ->
+            send_with_retry(FailedMsgs, Bridge, BridgeState, Retries-1);
+        _ ->
+            send_with_retry(Msgs, Bridge, BridgeState, Retries-1)
+    end.
+
+send(Msgs, Bridge, BridgeState) ->
+    try {ok, _} = Bridge:send(Msgs, BridgeState)
+    catch C:R -> {error, {C,R}}
     end.
 
 %% gen_server callbacks -------------------------------------------------------
@@ -78,6 +93,7 @@ init(_) ->
            default_options => #{num_pollers => 2,
                                 max_workers => 5,
                                 timer_interval => timer:seconds(15),
+                                send_retries => 5,
                                 poll_interval => 50}}}.
 
 handle_call({add_pool, Args}, _, State) ->
