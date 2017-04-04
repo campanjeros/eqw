@@ -77,7 +77,7 @@ send_with_retry(Msgs, Bridge, BridgeState, Retries) ->
             ok;
         {ok, FailedMsgs} ->
             send_with_retry(FailedMsgs, Bridge, BridgeState, Retries-1);
-        _ ->
+        {error, _} ->
             send_with_retry(Msgs, Bridge, BridgeState, Retries-1)
     end.
 
