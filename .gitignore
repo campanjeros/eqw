@@ -1,8 +1,8 @@
 .\#*
 \#*
 *~
-erl_crash.dump
 *.swp
 *.swo
-.rebar
+erl_crash.dump
+/rebar.lock
 /_build/
