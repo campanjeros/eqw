@@ -55,7 +55,7 @@ metadata(PoolRef) ->
                 {'EXIT', {Reason,_}} ->
                     {error, Reason};
                 Metadata ->
-                    Metadata
+                    {ok, Metadata}
             end
     end.
 
