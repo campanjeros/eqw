@@ -53,7 +53,7 @@ metadata(PoolRef) ->
         #{bridge:={BridgeMod, BridgeState}} ->
             case catch BridgeMod:metadata(BridgeState) of
                 {'EXIT', {Reason,_}} ->
-                    exit(Reason);
+                    {error, Reason};
                 Metadata ->
                     Metadata
             end
