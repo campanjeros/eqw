@@ -65,7 +65,7 @@ send_to_pool(PoolRef, Msgs) ->
         {error, not_found} ->
             {error, pool_not_found};
         #{bridge:={Bridge, BridgeState}, opts:=#{send_retries:=Retries}} ->
-            EncodedMsgs = [Bridge:encode(M) || M <- Msgs],
+            EncodedMsgs = [encode(Bridge, M) || M <- Msgs],
             send_with_retry(EncodedMsgs, Bridge, BridgeState, Retries)
     end.
 
@@ -204,3 +204,12 @@ resume_pool_pollers(Pool) ->
 
 get_pool_pollers(Pool) ->
     [P || {_, P, _, _} <- supervisor:which_children(Pool)].
+
+encode(Bridge, Msg) ->
+    case catch Bridge:encode(Msg) of
+        {'EXIT', Reason} ->
+            eqw_info:inc(bridge_msg_encode_crash, 1),
+            exit({gen_eqw_bridge, Bridge, Reason});
+        EncodedMsg ->
+            EncodedMsg
+    end.
