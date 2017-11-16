@@ -23,10 +23,10 @@
                                             | {error, Reason::any()}.
 
 %% Called before send. Used to hide transport-specific encoding from end user.
--callback encode(Msg::any()) -> EncodedMsg::any().
+-callback encode(Msg::any(), State::any()) -> EncodedMsg::any().
 
 %% Called after recv. Used to hide transport-specific encoding from end user.
--callback decode(Msg::any()) -> DecodedMsg::any().
+-callback decode(Msg::any(), State::any()) -> DecodedMsg::any().
 
 %% returns queue system metadata
 %% return value is a flat map with data appropriate for the queue system.
