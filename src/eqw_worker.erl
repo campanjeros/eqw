@@ -69,13 +69,13 @@ handle_cast({handle_message, Msg}, State) ->
                     eqw_timer:stop(TPid),
                     {stop, normal, State}
             end;
-        {'EXIT', Reason} ->
-            inc(bridge_msg_handled_crash, 1),
-            exit({gen_eqw_bridge, Bridge, Reason});
-        _ ->
+        error ->
             inc(bridge_msg_handled, 1),
             eqw_timer:stop(TPid),
-            {stop, normal, State}
+            {stop, normal, State};
+        {'EXIT', Reason} ->
+            inc(bridge_msg_handled_crash, 1),
+            exit({gen_eqw_bridge, Bridge, Reason})
     end;
 handle_cast(_, State) ->
     {noreply, State}.
