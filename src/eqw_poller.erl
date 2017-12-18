@@ -92,7 +92,7 @@ handle_info(poll, #{state := running} = State) ->
                     Pids = setup_workers(PoolRef, {Bridge, BridgeState},
                                          Worker, Opts, length(Msgs)),
                     PidMsgs = lists:zip(Pids, Msgs),
-                    [ eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs ],
+                    [eqw_worker:handle_message(P, M) || {P, M} <- PidMsgs],
                     erlang:send(self(), poll),
                     {noreply, State#{pool := Pids ++ Pool}}
             end
