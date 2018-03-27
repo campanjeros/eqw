@@ -17,8 +17,7 @@
          send_to_pool/2]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
+-export([init/1, handle_call/3, handle_cast/2]).
 
 %% Management API -------------------------------------------------------------
 
@@ -90,11 +89,7 @@ send(Msgs, Bridge, BridgeState) ->
 
 init(_) ->
     {ok, #{pools => #{},
-           default_options => #{num_pollers => 2,
-                                max_workers => 5,
-                                timer_interval => timer:seconds(15),
-                                send_retries => 5,
-                                poll_interval => 50}}}.
+           default_options => default_options(single)}}.
 
 handle_call({add_pool, Args}, _, State) ->
     #{pools := Pools, default_options := DefaultOpts} = State,
@@ -141,36 +136,33 @@ handle_call({pool_info, Ref}, _, #{pools := Pools} = State) ->
             {reply, Pool, State}
     end;
 handle_call(Msg, _, State) ->
+    %% FIXME: Remove this!
     io:format("wtf-msg: ~p~nstate: ~p~n", [Msg, State]),
     {noreply, State}.
 
 handle_cast(_, State) ->
     {noreply, State}.
 
-handle_info(_, State) ->
-    {noreply, State}.
-
-terminate(_, _) ->
-    ok.
-
-code_change(_, State, _) ->
-    {ok, State}.
-
 %% Internal -------------------------------------------------------------------
 
 add_pool(PoolRef, {{Bridge, BridgeArgs}, Worker, Opts}, DefaultOpts) ->
     case init_pool(Bridge, BridgeArgs) of
         {ok, BridgeState} ->
-            NewOpts = maps:merge(DefaultOpts, Opts),
-            #{num_pollers := NumPollers} = NewOpts,
-            {ok, Pool} = new_pool(),
+            AllOpts = case Opts of
+                          #{type:=single} ->
+                              maps:merge(DefaultOpts, Opts);
+                          #{type:=batch} ->
+                              maps:merge(default_options(batch), Opts)
+                      end,
+            #{type:=Type, num_pollers := NumPollers} = AllOpts,
+            {ok, Pool} = new_pool(PoolRef, Type),
             NewBridge = {Bridge, BridgeState},
-            [new_poller(Pool, PoolRef, NewBridge, Worker, NewOpts) ||
-              _ <- lists:seq(1, NumPollers)],
+            [new_poller(Pool, Type, PoolRef, NewBridge, Worker, AllOpts) ||
+             _ <- lists:seq(1, NumPollers)],
             {ok, #{pid => Pool,
                    bridge => NewBridge,
                    worker => Worker,
-                   opts => NewOpts,
+                   opts => AllOpts,
                    state => polling}};
         {error, Error} ->
             {error, Error}
@@ -186,11 +178,13 @@ init_pool(Bridge, BridgeArgs) ->
             {ok, BridgeState}
     end.
 
-new_pool() ->
-    eqw_pool_sup:add_child([]).
+new_pool(Ref, Type) ->
+    eqw_pool_sup:add_child(Ref, Type).
 
-new_poller(Pool, PoolRef, Bridge, Worker, Opts) ->
-    eqw_poller:new(Pool, PoolRef, Bridge, Worker, Opts).
+new_poller(Pool, single, PoolRef, Bridge, Worker, Opts) ->
+    eqw_poller:new(Pool, PoolRef, Bridge, Worker, Opts);
+new_poller(Pool, batch, PoolRef, Bridge, Worker, Opts) ->
+    eqw_batch_poller:new(Pool, PoolRef, Bridge, Worker, Opts).
 
 pause_pool_pollers(Pool) ->
     PollerPids = get_pool_pollers(Pool),
@@ -213,3 +207,22 @@ encode(Bridge, BridgeState, Msg) ->
         EncodedMsg ->
             EncodedMsg
     end.
+
+default_options(single) ->
+    #{type => single,
+      num_pollers => 2,
+      max_workers => 5,
+      timer_interval => timer:seconds(15),
+      send_retries => 5,
+      poll_interval => 50};
+default_options(batch) ->
+    #{type => batch,
+      num_pollers => 2,
+      max_workers => 5,
+      timer_interval => timer:seconds(15),
+      send_retries => 5,
+      poll_interval => 50,
+      batch_timeout => 5000,
+      fetch_size => 10,
+      max_buffer_size => 2000,
+      max_batch_size => 2000}.
