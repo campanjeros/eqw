@@ -15,7 +15,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
-%% Management Api -------------------------------------------------------------
+%% Management API -------------------------------------------------------------
 
 start_link(PoolRef, Bridge, Worker, Opts) ->
     gen_server:start_link(?MODULE, [PoolRef, Bridge, Worker, Opts], []).
@@ -26,7 +26,7 @@ new(ParentSup, PoolRef, Bridge, Worker, Opts) ->
 stop(Pid) ->
     gen_server:cast(Pid, stop).
 
-%% Api ------------------------------------------------------------------------
+%% API ------------------------------------------------------------------------
 
 pause(Pid) ->
     gen_server:cast(Pid, pause).

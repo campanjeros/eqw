@@ -10,7 +10,7 @@
 %% supervisor callbacks
 -export([init/1]).
 
-%% Management Api -------------------------------------------------------------
+%% Management API -------------------------------------------------------------
 
 start_link() ->
     supervisor:start_link(?MODULE, no_arg).

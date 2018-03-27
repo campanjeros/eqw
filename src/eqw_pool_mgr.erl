@@ -20,12 +20,12 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
-%% Management Api -------------------------------------------------------------
+%% Management API -------------------------------------------------------------
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%% Api ------------------------------------------------------------------------
+%% API ------------------------------------------------------------------------
 
 add_pool(Bridge, BridgeArgs, Worker, WorkerArgs, Opts) ->
     Args = {{Bridge, BridgeArgs}, {Worker, WorkerArgs}, Opts},

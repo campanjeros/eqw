@@ -5,13 +5,13 @@
 
 -behaviour(supervisor).
 
-%% Management Api
+%% Management API
 -export([start_link/0]).
 
 %% supervisor callbacks
 -export([init/1]).
 
-%% Management Api -------------------------------------------------------------
+%% Management API -------------------------------------------------------------
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, no_arg).

@@ -15,7 +15,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
-%% Management Api -------------------------------------------------------------
+%% Management API -------------------------------------------------------------
 
 start_link(PoolRef, Bridge, Worker, Opts) ->
     gen_server:start_link(?MODULE, [PoolRef, Bridge, Worker, Opts], []).
@@ -23,7 +23,7 @@ start_link(PoolRef, Bridge, Worker, Opts) ->
 new(PoolRef, Bridge, Worker, Opts) ->
     eqw_worker_sup:add_child([PoolRef, Bridge, Worker, Opts]).
 
-%% Api ------------------------------------------------------------------------
+%% API ------------------------------------------------------------------------
 
 handle_message(Pid, Msg) ->
     gen_server:cast(Pid, {handle_message, Msg}).

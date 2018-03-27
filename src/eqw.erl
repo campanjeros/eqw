@@ -3,7 +3,7 @@
 
 -module(eqw).
 
-%% Api
+%% API
 -export([start/0, stop/0,
          add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
@@ -13,7 +13,7 @@
 %% Utility
 -export([send/2]).
 
-%% Api ------------------------------------------------------------------------
+%% API ------------------------------------------------------------------------
 
 start() ->
     application:ensure_all_started(eqw).
