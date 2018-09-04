@@ -61,13 +61,20 @@ handle_cast({handle_message, Msg}, State) ->
         ok ->
             inc(bridge_msg_handled, 1),
             case catch Bridge:ack(Msg, BridgeState) of
+                ok ->
+                    inc(bridge_msg_ack, 1),
+                    eqw_timer:stop(TPid),
+                    {stop, normal, State};
+                {error, Error} ->
+                    inc(bridge_msg_ack_error, 1),
+                    eqw_timer:stop(TPid),
+                    {stop, {error, Error}, State};
                 {'EXIT', Reason} ->
                     inc(bridge_msg_ack_crash, 1),
                     exit({gen_eqw_bridge, Bridge, Reason});
-                _ ->
-                    inc(bridge_msg_ack, 1),
-                    eqw_timer:stop(TPid),
-                    {stop, normal, State}
+                Other ->
+                    inc(bridge_msg_ack_error, 1),
+                    exit({gen_eqw_bridge, Bridge, {unknown_ack_return, Other}})
             end;
         error ->
             inc(bridge_msg_handled, 1),
@@ -75,7 +82,10 @@ handle_cast({handle_message, Msg}, State) ->
             {stop, normal, State};
         {'EXIT', Reason} ->
             inc(bridge_msg_handled_crash, 1),
-            exit({gen_eqw_bridge, Bridge, Reason})
+            exit({gen_eqw_worker, Worker, Reason});
+        Other ->
+            inc(bridge_msg_handled_unknown_return, 1),
+            exit({gen_eqw_worker, Worker, {unknown_return, Other}})
     end;
 handle_cast(_, State) ->
     {noreply, State}.
