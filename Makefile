@@ -18,13 +18,13 @@ upgrade:
 compile:
 	./rebar3 compile
 
-test: xref eunit dialyzer
+test: xref ct dialyzer
 
 dialyzer:
 	./rebar3 dialyzer
 
-eunit:
-	./rebar3 eunit
+ct:
+	./rebar3 ct
 
 xref:
 	./rebar3 xref

@@ -53,7 +53,7 @@ handle_cast({handle_message, Msg}, State) ->
       bridge_state := BridgeState,
       worker := Worker,
       worker_state := WorkerState,
-      pool_ref:=PoolRef,
+      pool_ref:= PoolRef,
       opts := #{timer_interval := Interval}} = State,
     {ok, TPid} = eqw_timer:start_link(Interval, {Bridge, BridgeState}, Msg),
     DecodedMsg = decode(Bridge, BridgeState, Msg),
@@ -76,6 +76,11 @@ handle_cast({handle_message, Msg}, State) ->
                     inc(bridge_msg_ack_error, 1),
                     exit({gen_eqw_bridge, Bridge, {unknown_ack_return, Other}})
             end;
+        {async, Ref} ->
+            inc(bridge_async_msg_started, 1),
+            eqw_pool_mgr:add_async(PoolRef, Ref, Msg, TPid),
+            %% Note: eqw_timer process will still be running
+            {stop, normal, State};
         error ->
             inc(bridge_msg_handled, 1),
             eqw_timer:stop(TPid),

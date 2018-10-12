@@ -11,7 +11,7 @@
          stats/0, metadata/1]).
 
 %% Utility
--export([send/2]).
+-export([send/2, async_result/3]).
 
 %% Api ------------------------------------------------------------------------
 
@@ -49,3 +49,6 @@ stats() ->
 
 send(PoolRef, Msgs) ->
     eqw_pool_mgr:send_to_pool(PoolRef, Msgs).
+
+async_result(PoolRef, MsgRef, Val) ->
+    eqw_pool_mgr:async_result(PoolRef, MsgRef, Val).

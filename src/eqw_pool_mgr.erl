@@ -14,7 +14,8 @@
 -export([add_pool/5, del_pool/1,
          pause_pool/1, resume_pool/1,
          list_pools/0, pool_info/1, metadata/1,
-         send_to_pool/2]).
+         send_to_pool/2,
+         add_async/4, async_result/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -45,6 +46,12 @@ list_pools() ->
 
 pool_info(PoolRef) ->
     gen_server:call(?MODULE, {pool_info, PoolRef}).
+
+add_async(PoolRef, MsgRef, Msg, TimerPid) ->
+    gen_server:call(?MODULE, {add_async, PoolRef, MsgRef, Msg, TimerPid}).
+
+async_result(PoolRef, MsgRef, Val) ->
+    gen_server:call(?MODULE, {async_result, PoolRef, MsgRef, Val}).
 
 metadata(PoolRef) ->
     case pool_info(PoolRef) of
@@ -90,6 +97,7 @@ send(Msgs, Bridge, BridgeState) ->
 
 init(_) ->
     {ok, #{pools => #{},
+           async_msgs => #{},
            default_options => #{num_pollers => 2,
                                 max_workers => 5,
                                 timer_interval => timer:seconds(15),
@@ -139,6 +147,27 @@ handle_call({pool_info, Ref}, _, #{pools := Pools} = State) ->
             {reply, {error, not_found}, State};
         {ok, Pool} ->
             {reply, Pool, State}
+    end;
+handle_call({add_async, Ref, MsgRef, Msg, TPid}, _,
+            #{pools := Pools, async_msgs := AsyncMsgs} = State) ->
+    case maps:find(Ref, Pools) of
+        error ->
+            {reply, {error, not_found}, State};
+        {ok, _Pool} ->
+            NewState =
+                State#{async_msgs => AsyncMsgs#{{Ref, MsgRef} => {Msg, TPid}}},
+            {reply, ok, NewState}
+    end;
+handle_call({async_result, Ref, MsgRef, Val}, _,
+            #{pools := Pools, async_msgs := AsyncMsgs} = State) ->
+    case {maps:find(Ref, Pools), maps:find({Ref, MsgRef}, AsyncMsgs)} of
+        {{ok, Pool}, {ok, MsgInfo}} ->
+            Ret = handle_async_result(Pool, MsgInfo, Val),
+            NewState =
+                State#{async_msgs => maps:remove({Ref, MsgRef}, AsyncMsgs)},
+            {reply, Ret, NewState};
+        _ ->
+            {reply, {error, not_found}, State}
     end;
 handle_call(Msg, _, State) ->
     io:format("wtf-msg: ~p~nstate: ~p~n", [Msg, State]),
@@ -213,3 +242,28 @@ encode(Bridge, BridgeState, Msg) ->
         EncodedMsg ->
             EncodedMsg
     end.
+
+handle_async_result(#{bridge:={BridgeMod, BridgeState}},
+                    {Msg, TPid}, Val) ->
+    eqw_timer:stop(TPid),
+    eqw_info:inc(bridge_async_msg_finished),
+    ack_async_result(BridgeMod, BridgeState, Msg, Val).
+
+ack_async_result(BridgeMod, BridgeState, Msg, ok) ->
+    case catch BridgeMod:ack(Msg, BridgeState) of
+        ok ->
+            eqw_info:inc(bridge_msg_ack),
+            ok;
+        {error, Error} ->
+            eqw_info:inc(bridge_msg_ack_error),
+            {error, Error};
+        Other ->
+            eqw_info:inc(bridge_msg_ack_error),
+            Other
+    end;
+ack_async_result(_BridgeMod, _BridgeState, _Msg, error) ->
+    eqw_info:inc(bridge_msg_handled),
+    error;
+ack_async_result(_BridgeMod, _BridgeState, _Msg, Other) ->
+    eqw_info:inc(bridge_msg_handled_unknown_return),
+    Other.
