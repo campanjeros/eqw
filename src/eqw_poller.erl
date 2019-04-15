@@ -97,7 +97,7 @@ handle_info(poll, #{state := running} = State) ->
                     {noreply, State};
                 {ok, Msgs} ->
 	            file:write_file("/tmp/log", "poller-handle-info-messages\n", [append]),
-		    file:write_file("/tmp/log", io_lib:fwrite("~p.\n", [Msgs], [append]),
+		    file:write_file("/tmp/log", io_lib:fwrite("~p.\n", [Msgs]), [append]),
                     inc(bridge_receive_msgs, length(Msgs)),
                     Pids = setup_workers(PoolRef, {Bridge, BridgeState},
                                          Worker, Opts, length(Msgs)),
