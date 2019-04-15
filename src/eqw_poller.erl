@@ -90,8 +90,8 @@ handle_info(poll, #{state := running} = State) ->
                     inc(bridge_receive_error),
                     timer:send_after(PollInterval, poll),
                     {noreply, State};
-                {'EXIT', _Reason} ->
-	            file:write_file("/tmp/log", "poller-handle-info-true-crash\n", [append]),
+                {'EXIT', Reason} ->
+	            file:write_file("/tmp/log", io_lib:fwrite("poller-handle-info-true-crash: ~p\n", [Reason]), [append]),
                     inc(bridge_receive_crash),
                     timer:send_after(PollInterval, poll),
                     {noreply, State};
