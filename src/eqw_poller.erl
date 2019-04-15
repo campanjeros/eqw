@@ -82,17 +82,22 @@ handle_info(poll, #{state := running} = State) ->
         true ->
             file:write_file("/tmp/log", "poller-handle-info-true\n", [append]),
             NumMessages = min(MaxWorkers - length(Pool), 10),
+	    file:write_file("/tmp/log", io_lib:fwrite("~p.\n", [NumMessages]) , [append]),
             inc(bridge_receive),
             case catch Bridge:recv(NumMessages, BridgeState) of
                 {error, _Reason} ->
+	            file:write_file("/tmp/log", "poller-handle-info-true-error\n", [append]),
                     inc(bridge_receive_error),
                     timer:send_after(PollInterval, poll),
                     {noreply, State};
                 {'EXIT', _Reason} ->
+	            file:write_file("/tmp/log", "poller-handle-info-true-crash\n", [append]),
                     inc(bridge_receive_crash),
                     timer:send_after(PollInterval, poll),
                     {noreply, State};
                 {ok, Msgs} ->
+	            file:write_file("/tmp/log", "poller-handle-info-messages\n", [append]),
+		    file:write_file("/tmp/log", io_lib:fwrite("~p.\n", [Msgs], [append]),
                     inc(bridge_receive_msgs, length(Msgs)),
                     Pids = setup_workers(PoolRef, {Bridge, BridgeState},
                                          Worker, Opts, length(Msgs)),
