@@ -21,6 +21,7 @@ start_link(PoolRef, Bridge, Worker, Opts) ->
     gen_server:start_link(?MODULE, [PoolRef, Bridge, Worker, Opts], []).
 
 new(ParentSup, PoolRef, Bridge, Worker, Opts) ->
+    file:write_file("/tmp/log", "new-poller", [append]),
     eqw_poller_sup:add_child(ParentSup, [PoolRef, Bridge, Worker, Opts]).
 
 stop(Pid) ->
@@ -64,6 +65,7 @@ handle_info(poll, #{state := paused} = State) ->
     timer:send_after(PollInterval, poll),
     {noreply, State};
 handle_info(poll, #{state := running} = State) ->
+    file:write_file("/tmp/log", "poller-handle-info", [append]),
     #{pool_ref := PoolRef,
       bridge := Bridge,
       bridge_state := BridgeState,
