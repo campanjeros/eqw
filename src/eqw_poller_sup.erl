@@ -16,7 +16,7 @@ start_link() ->
     supervisor:start_link(?MODULE, no_arg).
 
 add_child(Pid, Args) ->
-    file:write_file("/tmp/log", "adding a child", [append]),
+    file:write_file("/tmp/log", "adding a child\n", [append]),
     supervisor:start_child(Pid, Args).
 
 del_child(ParentPid, ChildPid) ->

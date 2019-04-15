@@ -26,13 +26,13 @@ new(PoolRef, Bridge, Worker, Opts) ->
 %% Api ------------------------------------------------------------------------
 
 handle_message(Pid, Msg) ->
-    file:write_file("/tmp/eqw_handle_message", "eqw-handle-message"),
+    file:write_file("/tmp/log", "eqw-handle-message\n", [append]),
     gen_server:cast(Pid, {handle_message, Msg}).
 
 %% gen_server callbacks -------------------------------------------------------
 
 init([PoolRef, {Bridge, BridgeState}, {Worker, WorkerArgs}, Opts]) ->
-    file:write_file("/tmp/eqw_init", "eqw-init"),
+    file:write_file("/tmp/log", "eqw-init\n", [append]),
     case catch Worker:init(WorkerArgs) of
         {ok, WorkerState} ->
             {ok, #{pool_ref => PoolRef,

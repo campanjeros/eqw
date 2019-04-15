@@ -159,7 +159,7 @@ code_change(_, State, _) ->
 %% Internal -------------------------------------------------------------------
 
 add_pool(PoolRef, {{Bridge, BridgeArgs}, Worker, Opts}, DefaultOpts) ->
-    file:write_file("/tmp/log", "add-pool", [append]),
+    file:write_file("/tmp/log", "add-pool\n", [append]),
     case init_pool(Bridge, BridgeArgs) of
         {ok, BridgeState} ->
             NewOpts = maps:merge(DefaultOpts, Opts),
@@ -191,7 +191,6 @@ new_pool() ->
     eqw_pool_sup:add_child([]).
 
 new_poller(Pool, PoolRef, Bridge, Worker, Opts) ->
-    file:write_file("/tmp/log", "new-poller", [append]),
     eqw_poller:new(Pool, PoolRef, Bridge, Worker, Opts).
 
 pause_pool_pollers(Pool) ->

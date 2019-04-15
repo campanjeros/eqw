@@ -21,7 +21,7 @@ start_link(PoolRef, Bridge, Worker, Opts) ->
     gen_server:start_link(?MODULE, [PoolRef, Bridge, Worker, Opts], []).
 
 new(ParentSup, PoolRef, Bridge, Worker, Opts) ->
-    file:write_file("/tmp/log", "new-poller", [append]),
+    file:write_file("/tmp/log", "new-poller\n", [append]),
     eqw_poller_sup:add_child(ParentSup, [PoolRef, Bridge, Worker, Opts]).
 
 stop(Pid) ->
@@ -61,11 +61,12 @@ handle_cast(_, State) ->
     {noreply, State}.
 
 handle_info(poll, #{state := paused} = State) ->
+    file:write_file("/tmp/log", "poller-handle-info-paused\n", [append]),
     #{opts := #{poll_interval := PollInterval}} = State,
     timer:send_after(PollInterval, poll),
     {noreply, State};
 handle_info(poll, #{state := running} = State) ->
-    file:write_file("/tmp/log", "poller-handle-info", [append]),
+    file:write_file("/tmp/log", "poller-handle-info\n", [append]),
     #{pool_ref := PoolRef,
       bridge := Bridge,
       bridge_state := BridgeState,
@@ -75,9 +76,11 @@ handle_info(poll, #{state := running} = State) ->
                 poll_interval := PollInterval} = Opts} = State,
     case length(Pool) < MaxWorkers of
         false ->
+            file:write_file("/tmp/log", "poller-handle-info-false\n", [append]),
             timer:send_after(PollInterval, poll),
             {noreply, State};
         true ->
+            file:write_file("/tmp/log", "poller-handle-info-true\n", [append]),
             NumMessages = min(MaxWorkers - length(Pool), 10),
             inc(bridge_receive),
             case catch Bridge:recv(NumMessages, BridgeState) of
@@ -100,12 +103,15 @@ handle_info(poll, #{state := running} = State) ->
             end
     end;
 handle_info({'DOWN', _, _, Pid, normal}, #{pool := Pool} = State) ->
+    file:write_file("/tmp/log", "poller-handle-info-down-1\n", [append]),
     inc(worker_handled_msg),
     {noreply, State#{pool := Pool -- [Pid]}};
 handle_info({'DOWN', _, _, Pid, _}, #{pool := Pool} = State) ->
+    file:write_file("/tmp/log", "poller-handle-info-down-2\n", [append]),
     inc(worker_crashed),
     {noreply, State#{pool := Pool -- [Pid]}};
 handle_info(_, State) ->
+    file:write_file("/tmp/log", "poller-handle-info-other\n", [append]),
     {noreply, State}.
 
 terminate(_, _) ->
